@@ -5,6 +5,12 @@ max.lamparth@tum.de
 
 Needs Zork installed and callable as "zork" in the terminal.
 
+Results:
+-------
+Taken time for 10 commands: 0.9070s
+Time per commands 0.0907s
+Sleep time used to communicate: 0.03
+
 Notes:
 ------
     Used commands:
