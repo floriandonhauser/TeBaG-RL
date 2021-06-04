@@ -1,19 +1,18 @@
 from typing import Tuple
+
+import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
 import tf_agents
+from tf_agents.environments import random_py_environment, tf_py_environment
 from tf_agents.networks import network
 from tf_agents.specs import array_spec
-from tf_agents.environments import random_py_environment, tf_py_environment
-import numpy as np
-
 
 embedding = "https://tfhub.dev/google/nnlm-en-dim50/2"
 learning_rate = 1e-3
 
 
-def create_policy(env) -> Tuple[tf_agents.networks.Network,
-                                tf_agents.typing.types.Optimizer]:
+def create_policy(env) -> Tuple[tf_agents.networks.Network, tf_agents.typing.types.Optimizer]:
     q_net = AgentNetwork(env.observation_spec(), env.action_spec())
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
@@ -21,16 +20,13 @@ def create_policy(env) -> Tuple[tf_agents.networks.Network,
 
 
 class AgentNetwork(network.Network):
-    def __init__(self, input_tensor_spec, action_spec, name='ActorNetwork'):
-        super(AgentNetwork, self).__init__(
-            input_tensor_spec=input_tensor_spec, state_spec=(), name=name)
+    def __init__(self, input_tensor_spec, action_spec, name="ActorNetwork"):
+        super(AgentNetwork, self).__init__(input_tensor_spec=input_tensor_spec, state_spec=(), name=name)
 
         num_actions = action_spec.maximum - action_spec.minimum + 1
-        self.hub_layer = hub.KerasLayer(embedding, input_shape=[],
-                                        dtype=tf.string, trainable=True)
+        self.hub_layer = hub.KerasLayer(embedding, input_shape=[], dtype=tf.string, trainable=True)
         self.gru = tf.keras.layers.GRU(4, return_state=True)
-        self.q_value_layer = tf.keras.layers.Dense(
-            num_actions, activation=None)
+        self.q_value_layer = tf.keras.layers.Dense(num_actions, activation=None)
 
     def call(self, observation, network_state=None, training=False):
         """A wrapper around `Network.call`.
@@ -50,18 +46,15 @@ class AgentNetwork(network.Network):
 
 
 def main():
-    physical_devices = tf.config.experimental.list_physical_devices('GPU')
+    physical_devices = tf.config.experimental.list_physical_devices("GPU")
     for i in range(len(physical_devices)):
-        config = tf.config.experimental.set_memory_growth(
-            physical_devices[i], True)
+        config = tf.config.experimental.set_memory_growth(physical_devices[i], True)
         print("Changed memory growth for", physical_devices[i])
 
     print("Running main in agent.py")
-    action_spec = array_spec.BoundedArraySpec(
-        (1,), np.int, minimum=0, maximum=10)
+    action_spec = array_spec.BoundedArraySpec((1,), np.int, minimum=0, maximum=10)
     observation_spec = array_spec.ArraySpec((1,), np.str)
-    random_env = random_py_environment.RandomPyEnvironment(observation_spec=observation_spec,
-                                                           action_spec=action_spec)
+    random_env = random_py_environment.RandomPyEnvironment(observation_spec=observation_spec, action_spec=action_spec)
     # Convert the environment to a TFEnv to generate tensors.
     tf_env = tf_py_environment.TFPyEnvironment(random_env)
     print("Created environment")

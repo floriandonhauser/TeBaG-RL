@@ -1,12 +1,12 @@
 """TF python environment class for game based on TextWorld"""
 
 from abc import ABC
+
+import gym
 import numpy as np
 import textworld
 import textworld.gym
-import gym
-from tf_agents.environments import py_environment, tf_py_environment
-from tf_agents.environments import utils
+from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
 
@@ -26,9 +26,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         Turning on/off printing of states, commands, etc.
     """
 
-    def __init__(
-        self, game_path: str, path_verb: str, path_obj: str, debug: bool = True
-    ):
+    def __init__(self, game_path: str, path_verb: str, path_obj: str, debug: bool = True):
         self._game_path = game_path
         self._path_verb = path_verb
         self._path_obj = path_obj
@@ -43,9 +41,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             maximum=[len(self._list_verb) - 1, len(self._list_obj) - 1],
             name="action",
         )
-        self._observation_spec = array_spec.ArraySpec(
-            shape=(2,), dtype=STR_TYPE, name="observation"
-        )
+        self._observation_spec = array_spec.ArraySpec(shape=(2,), dtype=STR_TYPE, name="observation")
 
         self.curr_TWGym = None
         self._state = None
@@ -149,50 +145,3 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         with open(path, "r") as f:
             content = [item.strip() for item in f]
         return content
-
-
-def create_environments(debug: bool = False):
-    """Environment creation for test and evaluation
-
-    Inspired by Noah's code.
-    """
-
-    env_name = "/home/max/Software/TextWorld/notebooks/games/rewardsDense_goalBrief.ulx"
-    path_verbs = "./words_verbs_short.txt"
-    path_objs = "./words_objs_short.txt"
-    train_py_env = TWGameEnv(
-        game_path=env_name,
-        path_verb=path_verbs,
-        path_obj=path_objs,
-        debug=True,
-    )
-    eval_py_env = TWGameEnv(
-        game_path=env_name,
-        path_verb=path_verbs,
-        path_obj=path_objs,
-        debug=False,
-    )
-
-    if debug:
-        utils.validate_py_environment(train_py_env, episodes=5)
-
-    train_env = tf_py_environment.TFPyEnvironment(train_py_env)
-    eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
-
-    return train_env, eval_env
-
-
-def main():
-    """Test environment creation and validate with TF utils."""
-
-    env_t, env_e = create_environments(debug=True)
-
-    print("action_spec:", env_t.action_spec())
-    print("time_step_spec.observation:", env_t.time_step_spec().observation)
-    print("time_step_spec.step_type:", env_t.time_step_spec().step_type)
-    print("time_step_spec.discount:", env_t.time_step_spec().discount)
-    print("time_step_spec.reward:", env_t.time_step_spec().reward)
-
-
-if __name__ == "main":
-    main()
