@@ -1,6 +1,6 @@
 SHELL=/bin/bash
 LINT_PATHS=tests/ environments/ agents/
-# inspired by stable-baseline-3
+# inspired by stable baseline 3
 
 pytest:
 	./scripts/run_tests.sh
