@@ -20,7 +20,7 @@ def create_policy(env) -> Tuple[tf_agents.networks.Network, tf_agents.typing.typ
 def test_agent():
     physical_devices = tf.config.experimental.list_physical_devices("GPU")
     for i in range(len(physical_devices)):
-        config = tf.config.experimental.set_memory_growth(physical_devices[i], True)
+        tf.config.experimental.set_memory_growth(physical_devices[i], True)
         print("Changed memory growth for", physical_devices[i])
 
     print("Running main in agent.py")
