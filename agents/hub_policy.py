@@ -5,9 +5,9 @@ from tf_agents.networks import network
 embedding = "https://tfhub.dev/google/nnlm-en-dim50/2"
 
 
-class AgentNetwork(network.Network):
+class HubPolicy(network.Network):
     def __init__(self, input_tensor_spec, action_spec, name="ActorNetwork"):
-        super(AgentNetwork, self).__init__(input_tensor_spec=input_tensor_spec, state_spec=(), name=name)
+        super(HubPolicy, self).__init__(input_tensor_spec=input_tensor_spec, state_spec=(), name=name)
 
         num_actions = action_spec.maximum - action_spec.minimum + 1
         self.hub_layer = hub.KerasLayer(embedding, input_shape=[], dtype=tf.string, trainable=True)

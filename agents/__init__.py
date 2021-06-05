@@ -1,1 +1,1 @@
-from agents.agent import AgentNetwork
+from agents.hub_policy import HubPolicy
