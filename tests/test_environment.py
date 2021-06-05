@@ -23,8 +23,8 @@ def create_environments(debug: bool = False):
 
     # TODO relative path in resources @Max
     env_name = "/home/max/Software/TextWorld/notebooks/games/rewardsDense_goalBrief.ulx"
-    path_verbs = "../resources/words_verbs_short.txt"
-    path_objs = "../resources/words_objs_short.txt"
+    path_verbs = "resources/words_verbs_short.txt"
+    path_objs = "resources/words_objs_short.txt"
     train_py_env = TWGameEnv(
         game_path=env_name,
         path_verb=path_verbs,
