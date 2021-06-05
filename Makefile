@@ -24,6 +24,6 @@ check-codestyle:
 	# Reformat using black
 	black --check -l 127 ${LINT_PATHS}
 
-commit-checks: format lint
+commit-checks: format lint pytest
 
 .PHONY: pytest format lint check-codestyle
