@@ -18,22 +18,27 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
 
     Parameters:
     -----------
-    _game_path: str
+    game_path: str
         Path to game file (ulx. only?)
-    _path_verb, _path_obj: str
+    path_verb, path_obj: str
         Path to verb and object files to create commands as VERB + OBJ
-    _debug: True
+    path_badact: str
+        Path to list of bad environment observation returns from nonsense commands.
+    debug: True
         Turning on/off printing of states, commands, etc.
     """
 
-    def __init__(self, game_path: str, path_verb: str, path_obj: str, debug: bool = False):
+    def __init__(self, game_path: str, path_verb: str, path_obj: str, path_badact: str, debug: bool = False):
         self._game_path = game_path
         self._path_verb = path_verb
         self._path_obj = path_obj
+        self._path_badact = path_badact
         self._debug = debug
 
         self._list_verb = self._get_words(self._path_verb)
         self._list_obj = self._get_words(self._path_obj)
+        self.list_badact = self._get_words(self._path_badact)
+
         self._action_spec = array_spec.BoundedArraySpec(
             shape=(2,),
             dtype=np.uint16,
