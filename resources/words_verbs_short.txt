@@ -35,3 +35,19 @@ drop
 pour
 pray
 fill
+move
+save
+restore
+diagnostic
+jump
+go into
+throw
+attack
+examine
+shout
+tie
+break
+smell
+cut
+listen
+fly
