@@ -73,21 +73,23 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         if self._state["done"] or self._state["won"] or self._state["lost"]:
             self._episode_ended = True
 
-        old_score = self._state["score"]
+        old_state = self._state
         cmd = self._conv_to_cmd(action)
         self._state = self._conv_to_state(*self.curr_TWGym.step(cmd))
-        new_score = self._state["score"]
+        new_state = self._state
 
         if self._debug:
             print(self._state)
-        pass_state = self._conv_pass_state(self._state)
 
         # TODO: adjust reward and discount
+        pass_state = self._conv_pass_state(self._state)
+        reward = self._calc_reward(new_state, old_state, cmd)
+        if self._debug:
+            print(f"Reward = {reward}")
+
         if self._episode_ended:
-            reward = new_score - old_score
             return ts.termination(pass_state, reward)
         else:
-            reward = new_score - old_score
             return ts.transition(pass_state, reward=reward, discount=1.0)
 
     def _start_game(self):
@@ -125,6 +127,30 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             print(f"Doing: {cmd_str}")
 
         return cmd_str
+
+    def _calc_reward(self, new_state, old_state, cmd):
+        """Calculate reward based on different environment returns and changes."""
+
+        reward = 0
+
+        # Use score difference as base reward
+        reward += new_state["score"] - old_state["score"]
+
+        # Use change in environment description to reward changes
+        inv_change = False if new_state["inventory"] == old_state["inventory"] else True
+        des_change = False if new_state["description"] == old_state["description"] else True
+        if inv_change or des_change:
+            reward += 1
+        else:
+            reward -= 1
+
+        # Punish useless actions
+        if np.array([elem in new_state["obs"] for elem in self.list_badact]).sum():
+            reward -= 1
+
+        # TODO: Check if command was partly in admissible commands (right verb)
+
+        return reward
 
     @staticmethod
     def _conv_to_state(obs: str, score: int, done: bool, info: dict) -> np.array:
