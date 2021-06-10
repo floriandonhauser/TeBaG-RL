@@ -26,7 +26,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         Turning on/off printing of states, commands, etc.
     """
 
-    def __init__(self, game_path: str, path_verb: str, path_obj: str, debug: bool = True):
+    def __init__(self, game_path: str, path_verb: str, path_obj: str, debug: bool = False):
         self._game_path = game_path
         self._path_verb = path_verb
         self._path_obj = path_obj
