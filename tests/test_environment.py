@@ -21,21 +21,23 @@ def create_environments(debug: bool = False):
     Inspired by Noah's code.
     """
 
-    # TODO relative path in resources @Max
-    env_name = "/home/max/Software/TextWorld/notebooks/games/rewardsDense_goalBrief.ulx"
+    env_name = "./resources/rewardsDense_goalBrief.ulx"
     path_verbs = "resources/words_verbs_short.txt"
     path_objs = "resources/words_objs_short.txt"
+    path_badact = "./resources/bad_actions.txt"
     train_py_env = TWGameEnv(
         game_path=env_name,
         path_verb=path_verbs,
         path_obj=path_objs,
-        debug=True,
+        path_badact=path_badact,
+        debug=debug,
     )
     eval_py_env = TWGameEnv(
         game_path=env_name,
         path_verb=path_verbs,
         path_obj=path_objs,
-        debug=False,
+        path_badact=path_badact,
+        debug=debug,
     )
 
     if debug:
