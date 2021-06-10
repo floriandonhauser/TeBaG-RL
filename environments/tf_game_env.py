@@ -115,7 +115,12 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
     def _conv_to_cmd(self, action_ind: list):
         """Convert indices from agent into string command via imported files."""
 
-        cmd_str = self._list_verb[action_ind[0]] + " " + self._list_obj[action_ind[1]]
+        verb = self._list_verb[action_ind[0]]
+        if action_ind[1] == 0:
+            obj = ""
+        else:
+            obj = self._list_obj[action_ind[1]]
+        cmd_str = verb + " " + obj
         if self._debug:
             print(f"Doing: {cmd_str}")
 
