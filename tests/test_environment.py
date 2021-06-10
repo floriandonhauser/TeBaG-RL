@@ -22,8 +22,8 @@ def create_environments(debug: bool = False):
     """
 
     env_name = "./resources/rewardsDense_goalBrief.ulx"
-    path_verbs = "resources/words_verbs_short.txt"
-    path_objs = "resources/words_objs_short.txt"
+    path_verbs = "./resources/words_verbs_short.txt"
+    path_objs = "./resources/words_objs_short.txt"
     path_badact = "./resources/bad_actions.txt"
     train_py_env = TWGameEnv(
         game_path=env_name,
