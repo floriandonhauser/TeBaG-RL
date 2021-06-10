@@ -19,7 +19,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
     Parameters:
     -----------
     game_path: str
-        Path to game file (ulx. only?)
+        Path to game file
     path_verb, path_obj: str
         Path to verb and object files to create commands as VERB + OBJ
     path_badact: str
@@ -37,7 +37,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
 
         self._list_verb = self._get_words(self._path_verb)
         self._list_obj = self._get_words(self._path_obj)
-        self.list_badact = self._get_words(self._path_badact)
+        self._list_badact = self._get_words(self._path_badact)
 
         self._action_spec = array_spec.BoundedArraySpec(
             shape=(2,),
@@ -118,6 +118,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         """Convert indices from agent into string command via imported files."""
 
         verb = self._list_verb[action_ind[0]]
+        # EMTPY obj should be empty string
         if action_ind[1] == 0:
             obj = ""
         else:
@@ -137,6 +138,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         reward += new_state["score"] - old_state["score"]
 
         # Use change in environment description to reward changes
+        # Todo: Maybe use length check? If strings do not saturate length, it could work
         inv_change = False if new_state["inventory"] == old_state["inventory"] else True
         des_change = False if new_state["description"] == old_state["description"] else True
         if inv_change or des_change:
@@ -145,10 +147,11 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             reward -= 1
 
         # Punish useless actions
-        if np.array([elem in new_state["obs"] for elem in self.list_badact]).sum():
+        if np.array([elem in new_state["obs"] for elem in self._list_badact]).sum():
             reward -= 1
 
         # TODO: Check if command was partly in admissible commands (right verb)
+        # TODO: Include "Win" or "Lost" state
 
         return reward
 
@@ -156,7 +159,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
     def _conv_to_state(obs: str, score: int, done: bool, info: dict) -> np.array:
         """Convert TextWorld gym env output into nested array"""
 
-        # TODO: Pre-processing text
+        # TODO: Pre-processing text?
         return {
             "score": score,
             "done": done,
