@@ -79,10 +79,10 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
 
         # TODO: adjust reward and discount
         if self._episode_ended:
-            reward = old_score - new_score
+            reward = new_score - old_score
             return ts.termination(pass_state, reward)
         else:
-            reward = old_score - new_score
+            reward = new_score - old_score
             return ts.transition(pass_state, reward=reward, discount=1.0)
 
     def _start_game(self):
