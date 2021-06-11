@@ -27,10 +27,19 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
     debug: True
         Turning on/off printing of states, commands, etc.
     flatten_actspec: False
-        Flattening action space from 2D (ver, obj) to list of all possible combinations for 1D action space.
+        Flattening action space from 2D (ver, obj) to list of all possible combinations
+        for 1D action space.
     """
 
-    def __init__(self, game_path: str, path_verb: str, path_obj: str, path_badact: str, debug: bool = False, flatten_actspec: bool = False):
+    def __init__(
+        self,
+        game_path: str,
+        path_verb: str,
+        path_obj: str,
+        path_badact: str,
+        debug: bool = False,
+        flatten_actspec: bool = False,
+    ):
         self._game_path = game_path
         self._path_verb = path_verb
         self._path_obj = path_obj
@@ -43,7 +52,9 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         self._list_badact = self._get_words(self._path_badact)
 
         if self._flatten_actspec:
-            self._list_verbobj = [v + " " + o for v in self._list_verb for o in self._list_obj]
+            self._list_verbobj = [
+                v + " " + o for v in self._list_verb for o in self._list_obj
+            ]
             self._action_spec = array_spec.BoundedArraySpec(
                 shape=(1,),
                 dtype=np.uint16,
@@ -62,7 +73,9 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
                 name="action",
             )
 
-        self._observation_spec = array_spec.ArraySpec(shape=(2,), dtype=STR_TYPE, name="observation")
+        self._observation_spec = array_spec.ArraySpec(
+            shape=(2,), dtype=STR_TYPE, name="observation"
+        )
 
         self.curr_TWGym = None
         self._state = None
@@ -159,7 +172,9 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         # Use change in environment description to reward changes
         # Todo: Maybe use length check? If strings do not saturate length, it could work
         inv_change = False if new_state["inventory"] == old_state["inventory"] else True
-        des_change = False if new_state["description"] == old_state["description"] else True
+        des_change = (
+            False if new_state["description"] == old_state["description"] else True
+        )
         if inv_change or des_change:
             reward += 1
         else:
