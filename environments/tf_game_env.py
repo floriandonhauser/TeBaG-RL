@@ -26,26 +26,42 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         Path to list of bad environment observation returns from nonsense commands.
     debug: True
         Turning on/off printing of states, commands, etc.
+    flatten_actspec: False
+        Flattening action space from 2D (ver, obj) to list of all possible combinations for 1D action space.
     """
 
-    def __init__(self, game_path: str, path_verb: str, path_obj: str, path_badact: str, debug: bool = False):
+    def __init__(self, game_path: str, path_verb: str, path_obj: str, path_badact: str, debug: bool = False, flatten_actspec: bool = False):
         self._game_path = game_path
         self._path_verb = path_verb
         self._path_obj = path_obj
         self._path_badact = path_badact
         self._debug = debug
+        self._flatten_actspec = flatten_actspec
 
         self._list_verb = self._get_words(self._path_verb)
         self._list_obj = self._get_words(self._path_obj)
         self._list_badact = self._get_words(self._path_badact)
 
-        self._action_spec = array_spec.BoundedArraySpec(
-            shape=(2,),
-            dtype=np.uint16,
-            minimum=[0, 0],
-            maximum=[len(self._list_verb) - 1, len(self._list_obj) - 1],
-            name="action",
-        )
+        if self._flatten_actspec:
+            self._list_verbobj = [v + " " + o for v in self._list_verb for o in self._list_obj]
+            self._action_spec = array_spec.BoundedArraySpec(
+                shape=(1,),
+                dtype=np.uint16,
+                minimum=0,
+                maximum=(len(self._list_verbobj) - 1),
+                name="action",
+            )
+
+        else:
+            self._list_verbobj = None
+            self._action_spec = array_spec.BoundedArraySpec(
+                shape=(2,),
+                dtype=np.uint16,
+                minimum=[0, 0],
+                maximum=[len(self._list_verb) - 1, len(self._list_obj) - 1],
+                name="action",
+            )
+
         self._observation_spec = array_spec.ArraySpec(shape=(2,), dtype=STR_TYPE, name="observation")
 
         self.curr_TWGym = None
@@ -117,13 +133,16 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
     def _conv_to_cmd(self, action_ind: list):
         """Convert indices from agent into string command via imported files."""
 
-        verb = self._list_verb[action_ind[0]]
-        # EMTPY obj should be empty string
-        if action_ind[1] == 0:
-            obj = ""
+        if self._flatten_actspec:
+            cmd_str = self._list_verbobj[action_ind]
         else:
-            obj = self._list_obj[action_ind[1]]
-        cmd_str = verb + " " + obj
+            verb = self._list_verb[action_ind[0]]
+            # EMTPY obj should be empty string
+            if action_ind[1] == 0:
+                obj = ""
+            else:
+                obj = self._list_obj[action_ind[1]]
+            cmd_str = verb + " " + obj
         if self._debug:
             print(f"Doing: {cmd_str}")
 
