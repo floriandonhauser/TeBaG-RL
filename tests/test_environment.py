@@ -25,6 +25,7 @@ def create_environments(debug: bool = False):
     path_verbs = "./resources/words_verbs_short.txt"
     path_objs = "./resources/words_objs_short.txt"
     path_badact = "./resources/bad_actions.txt"
+
     train_py_env = TWGameEnv(
         game_path=env_name,
         path_verb=path_verbs,
