@@ -1,4 +1,6 @@
 EMPTY
+all
+everything
 door
 chest
 room
@@ -21,4 +23,38 @@ sign
 hatch
 gear
 lever
-
+on
+off
+name
+spell
+self
+map
+compass
+screen door
+drawer
+trunk
+refrigerator
+toilet
+bath
+bag of chips
+carrot
+apple
+shovel
+bed
+counter
+set of chairs
+chair
+stove
+kitchen island
+sink
+couch
+tv
+bbq
+lettuce
+milk
+tomato plant
+plant
+key
+soap bar
+toothbrush
+remote
