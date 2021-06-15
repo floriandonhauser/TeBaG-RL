@@ -13,8 +13,9 @@ class HubPolicy(network.Network):
         self.hub_layer = hub.KerasLayer(embedding, input_shape=[], dtype=tf.string, trainable=True)
         self.gru = tf.keras.layers.GRU(4, return_state=True)
         self.q_value_layer = tf.keras.layers.Dense(num_actions, activation=None)
+        self.number_of_strings = input_tensor_spec.shape[0]
 
-    def call(self, observation, network_state=None, training=False):
+    def call(self, observation, network_state=(), training=False):
         """A wrapper around `Network.call`.
 
         Args:
@@ -24,8 +25,19 @@ class HubPolicy(network.Network):
         Returns:
         A tuple `(outputs, new_network_state)`.
         """
-        embedding = self.hub_layer(observation, training=training)
-        embedding = tf.expand_dims(embedding, axis=0)
-        gru_output, state = self.gru(embedding, initial_state=network_state)
+        if network_state is not None and len(network_state) == 0:
+            network_state = None
+        print("Entering call: ")
+        print(network_state)
+        all_embeddings = []
+        for index in range(self.number_of_strings):
+            current_string = tf.reshape(observation[0,index], (1))
+            curr_embedding = self.hub_layer(current_string, training=training)
+            curr_embedding = tf.expand_dims(curr_embedding, axis=0)
+            all_embeddings.append(curr_embedding)
+        all_embeddings = tf.concat(all_embeddings, axis=2)
+        gru_output, network_state = self.gru(all_embeddings, initial_state=network_state)
         q_value = self.q_value_layer(gru_output, training=training)
-        return q_value, state
+        print(q_value.shape)
+        print(network_state)
+        return q_value, ()

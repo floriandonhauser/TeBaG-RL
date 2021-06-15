@@ -32,19 +32,22 @@ eval_interval = 1000
 
 # Environments (Max)
 def create_environments():
-    env_name = None
+    env_name = "resources/rewardsDense_goalBrief.ulx"
     path_verbs = "resources/words_verbs_short.txt"
     path_objs = "resources/words_objs_short.txt"
+    path_badact = "resources/bad_actions.txt"
     train_py_env = TWGameEnv(
         game_path=env_name,
         path_verb=path_verbs,
         path_obj=path_objs,
+        path_badact=path_badact,
         debug=True,
     )
     eval_py_env = TWGameEnv(
         game_path=env_name,
         path_verb=path_verbs,
         path_obj=path_objs,
+        path_badact=path_badact,
         debug=False,
     )
 
@@ -55,7 +58,9 @@ def create_environments():
 
 # policy (Florian)
 def create_policy(env, learning_rate=1e-3):
-    q_net = HubPolicy(env.observation_spec(), env.action_spec())
+    observation_spec = env.observation_spec()
+    action_spec = env.action_spec()
+    q_net = HubPolicy(observation_spec, action_spec)
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
     return q_net, optimizer
@@ -131,8 +136,8 @@ def main():
     agent.train = common.function(agent.train)
     agent.train_step_counter.assign(0)
 
-    avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
-    returns = [avg_return]
+    #avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
+    returns = [] # [avg_return]
 
     # learning
     for _ in range(num_iterations):

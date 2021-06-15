@@ -38,7 +38,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         path_obj: str,
         path_badact: str,
         debug: bool = False,
-        flatten_actspec: bool = False,
+        flatten_actspec: bool = True,
     ):
         self._game_path = game_path
         self._path_verb = path_verb
@@ -57,19 +57,20 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             ]
             self._action_spec = array_spec.BoundedArraySpec(
                 shape=(),
-                dtype=np.uint16,
+                dtype=np.int32,
                 minimum=0,
-                maximum=(len(self._list_verbobj) - 1),
+                maximum=len(self._list_verbobj) - 1,
                 name="action",
             )
 
         else:
+            print("Warning")
             self._list_verbobj = None
             self._action_spec = array_spec.BoundedArraySpec(
-                shape=(2,),
-                dtype=np.uint16,
-                minimum=[0, 0],
-                maximum=[len(self._list_verb) - 1, len(self._list_obj) - 1],
+                shape=(),
+                dtype=np.int32,
+                minimum=0,
+                maximum=len(self._list_verb) * len(self._list_obj) - 1,
                 name="action",
             )
 
