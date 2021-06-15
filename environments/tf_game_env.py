@@ -78,6 +78,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             shape=(2,), dtype=STR_TYPE, name="observation"
         )
 
+        self._batch_size = 64
         self.curr_TWGym = None
         self._state = None
         self._episode_ended = False

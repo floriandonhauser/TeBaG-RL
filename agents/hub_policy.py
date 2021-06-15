@@ -28,16 +28,21 @@ class HubPolicy(network.Network):
         if network_state is not None and len(network_state) == 0:
             network_state = None
         print("Entering call: ")
-        print(network_state)
-        all_embeddings = []
-        for index in range(self.number_of_strings):
-            current_string = tf.reshape(observation[0,index], (1))
-            curr_embedding = self.hub_layer(current_string, training=training)
-            curr_embedding = tf.expand_dims(curr_embedding, axis=0)
-            all_embeddings.append(curr_embedding)
-        all_embeddings = tf.concat(all_embeddings, axis=2)
-        gru_output, network_state = self.gru(all_embeddings, initial_state=network_state)
-        q_value = self.q_value_layer(gru_output, training=training)
-        print(q_value.shape)
-        print(network_state)
-        return q_value, ()
+        # print(network_state)
+        batch = []
+        for i in range(observation.shape[0]):
+            all_embeddings = []
+            for index in range(self.number_of_strings):
+                # print(observation[i, index])
+                current_string = tf.reshape(observation[i, index], (1,))
+                curr_embedding = self.hub_layer(current_string, training=training)
+                curr_embedding = tf.expand_dims(curr_embedding, axis=0)
+                all_embeddings.append(curr_embedding)
+            all_embeddings = tf.concat(all_embeddings, axis=2)
+            gru_output, network_state = self.gru(all_embeddings, initial_state=network_state)
+            q_value = self.q_value_layer(gru_output, training=training)
+            batch.append(q_value)
+        q_values = tf.concat(q_value, axis=0)
+        # print(q_value.shape)
+        # print(network_state)
+        return q_values, ()
