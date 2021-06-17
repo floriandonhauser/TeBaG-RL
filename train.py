@@ -16,18 +16,20 @@ from tf_agents.utils import common
 from agents import HubPolicy
 from environments import TWGameEnv
 
+import numpy as np
+
 # Configuration
-num_iterations = 20000
+num_iterations = 5
 
 initial_collect_steps = 100
 collect_steps_per_iteration = 1
 replay_buffer_max_length = 100000
 batch_size = 64
 learning_rate = 1e-3
-log_interval = 200
+log_interval = 1
 
-num_eval_episodes = 10
-eval_interval = 1000
+num_eval_episodes = 2
+eval_interval = 1
 
 
 # Environments (Max)
@@ -53,23 +55,23 @@ def create_environments():
 
     train_env = tf_py_environment.TFPyEnvironment(train_py_env)
     eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
-    return train_env, eval_env
+    return train_env, eval_env, train_py_env.num_verb, train_py_env.num_obj
 
 
 # policy (Florian)
-def create_policy(env, learning_rate=1e-3):
+def create_policy(env, num_verb, num_obj, learning_rate=1e-3):
     observation_spec = env.observation_spec()
     action_spec = env.action_spec()
-    q_net = HubPolicy(observation_spec, action_spec)
+    q_net = HubPolicy(observation_spec, action_spec, num_verb, num_obj)
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
     return q_net, optimizer
 
 
-def create_agent(env):
+def create_agent(env, num_verb, num_obj):
     train_step_counter = tf.Variable(0)
 
-    q_net, optimizer = create_policy(env)
+    q_net, optimizer = create_policy(env, num_verb, num_obj)
 
     agent = dqn_agent.DqnAgent(
         env.time_step_spec(),
@@ -112,8 +114,8 @@ def collect_data(env, policy, buffer, steps):
 
 
 def main():
-    train_env, eval_env = create_environments()
-    agent = create_agent(train_env)
+    train_env, eval_env, num_verb, num_obj = create_environments()
+    agent = create_agent(train_env, num_verb, num_obj)
     agent.initialize()
 
     random_policy = random_tf_policy.RandomTFPolicy(train_env.time_step_spec(), train_env.action_spec())
@@ -157,11 +159,15 @@ def main():
             print(f'step = {step}: Average Return = {avg_return}')
             returns.append(avg_return)
 
-    iterations = range(0, num_iterations + 1, eval_interval)
+    iterations = np.arange(1, num_iterations+1, eval_interval) # range(0, num_iterations + 1, eval_interval)
+    returns = np.array(returns)
+    print(iterations.shape, iterations)
+    print(returns.shape, returns)
     plt.plot(iterations, returns)
     plt.ylabel('Average Return')
     plt.xlabel('Iterations')
     plt.ylim(top=250)
+    plt.savefig('training_curve.png')
 
 
 if __name__ == "__main__":

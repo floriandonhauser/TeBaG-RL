@@ -51,6 +51,9 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         self._list_obj = self._get_words(self._path_obj)
         self._list_badact = self._get_words(self._path_badact)
 
+        self.num_verb = len(self._list_verb)
+        self.num_obj = len(self._list_obj)
+
         if self._flatten_actspec:
             self._list_verbobj = [
                 v + " " + o for v in self._list_verb for o in self._list_obj
