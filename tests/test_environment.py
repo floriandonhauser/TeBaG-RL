@@ -32,6 +32,7 @@ def create_environments(debug: bool = False):
         path_obj=path_objs,
         path_badact=path_badact,
         debug=debug,
+        flatten_actspec=True,
     )
     eval_py_env = TWGameEnv(
         game_path=env_name,
@@ -39,6 +40,7 @@ def create_environments(debug: bool = False):
         path_obj=path_objs,
         path_badact=path_badact,
         debug=debug,
+        flatten_actspec=True,
     )
 
     if debug:
