@@ -7,7 +7,7 @@ embedding = "https://tfhub.dev/google/nnlm-en-dim50/2"
 
 class HubPolicy(network.Network):
     def __init__(self, input_tensor_spec, action_spec, num_verb, num_obj, name="ActorNetwork"):
-        super(HubPolicy, self).__init__(input_tensor_spec=input_tensor_spec, state_spec=(), name=name)
+        super().__init__()
 
         num_actions = action_spec.maximum - action_spec.minimum + 1
         assert num_actions == num_verb*num_obj
