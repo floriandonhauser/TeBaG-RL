@@ -1,6 +1,6 @@
 """Module for environment testing."""
 
-from environments import TWGameEnv, create_environments
+from environments import create_environments
 
 
 def test_environment_creation():
