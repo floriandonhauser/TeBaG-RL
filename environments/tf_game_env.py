@@ -11,6 +11,15 @@ from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
 
 STR_TYPE = "S500"
+HASH_LIST_LENGTH = 10
+# all positive int!
+REWARD_DICT = {
+    "win_lose_value": 100,
+    "max_loop_pun": 5,
+    "change_reward": 1,
+    "useless_act_pun": 1,
+    "verb_in_adm": 1,
+}
 
 
 class TWGameEnv(py_environment.PyEnvironment, ABC):
@@ -38,7 +47,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         path_obj: str,
         path_badact: str,
         debug: bool = False,
-        flatten_actspec: bool = True,
+        flatten_actspec: bool = False,
     ):
         self._game_path = game_path
         self._path_verb = path_verb
@@ -60,20 +69,19 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             ]
             self._action_spec = array_spec.BoundedArraySpec(
                 shape=(),
-                dtype=np.int32,
+                dtype=np.uint16,
                 minimum=0,
-                maximum=len(self._list_verbobj) - 1,
+                maximum=(len(self._list_verbobj) - 1),
                 name="action",
             )
 
         else:
-            print("Warning")
             self._list_verbobj = None
             self._action_spec = array_spec.BoundedArraySpec(
-                shape=(),
-                dtype=np.int32,
-                minimum=0,
-                maximum=len(self._list_verb) * len(self._list_obj) - 1,
+                shape=(2,),
+                dtype=np.uint16,
+                minimum=[0, 0],
+                maximum=[len(self._list_verb) - 1, len(self._list_obj) - 1],
                 name="action",
             )
 
@@ -81,7 +89,9 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             shape=(2,), dtype=STR_TYPE, name="observation"
         )
 
-        self._batch_size = 64
+        self._hash_dsc = [0] * HASH_LIST_LENGTH
+        self._hash_inv = [0] * HASH_LIST_LENGTH
+
         self.curr_TWGym = None
         self._state = None
         self._episode_ended = False
@@ -111,11 +121,12 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         cmd = self._conv_to_cmd(action)
         self._state = self._conv_to_state(*self.curr_TWGym.step(cmd))
         new_state = self._state
+        self._update_hash_cache(new_state)
 
         if self._debug:
             print(self._state)
 
-        # TODO: adjust reward and discount
+        # TODO: adjust discount in tf_agents.trajectories.time_step.transition?
         pass_state = self._conv_pass_state(self._state)
         reward = self._calc_reward(new_state, old_state, cmd)
         if self._debug:
@@ -174,25 +185,57 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         # Use score difference as base reward
         reward += new_state["score"] - old_state["score"]
 
-        # Use change in environment description to reward changes
-        # Todo: Maybe use length check? If strings do not saturate length, it could work
-        inv_change = False if new_state["inventory"] == old_state["inventory"] else True
-        des_change = (
-            False if new_state["description"] == old_state["description"] else True
-        )
-        if inv_change or des_change:
-            reward += 1
-        else:
-            reward -= 1
-
-        # Punish useless actions
+        # Punish useless actions from know game return statements
         if np.array([elem in new_state["obs"] for elem in self._list_badact]).sum():
-            reward -= 1
+            reward -= REWARD_DICT["useless_act_pun"]
 
-        # TODO: Check if command was partly in admissible commands (right verb)
-        # TODO: Include "Win" or "Lost" state
+        # Use change in environment description to reward changes
+        inv_change = self._calc_cache_changes(self._hash_inv)
+        des_change = self._calc_cache_changes(self._hash_dsc)
+        if inv_change <= 1 or des_change <= 1:
+            reward += REWARD_DICT["change_reward"]
+        else:
+            # at least 1, at max REWARD_DICT["max_loop_pun"]
+            reward -= min([inv_change - 1, des_change - 1, REWARD_DICT["max_loop_pun"]])
+
+        # Greatly reward/punish win/lose of game
+        if new_state["won"]:
+            reward += REWARD_DICT["win_lose_value"]
+        elif new_state["lost"]:
+            reward -= REWARD_DICT["win_lose_value"]
+
+        # Check if verb in command was in admissible commands
+        cmd_in_adm = self._find_verb_in_list(
+            verb_str=cmd[: cmd.find(" ")], adm_cmd=new_state["admissible_commands"]
+        )
+        if cmd_in_adm:
+            reward += REWARD_DICT["verb_in_adm"]
 
         return reward
+
+    def _update_hash_cache(self, curr_state):
+        """Use new state to add current desc and inv to hashed list of last states."""
+
+        # Advanced hashing with import hashlib
+        self._hash_dsc.append(hash(curr_state["description"]))
+        self._hash_dsc.pop(0)
+        self._hash_inv.append(hash(curr_state["inventory"]))
+        self._hash_inv.pop(0)
+
+    @staticmethod
+    def _find_verb_in_list(verb_str: str, adm_cmd: list) -> bool:
+        """Find whether a substring is in a list of longer strings"""
+
+        count = np.asarray([verb_str in adm for adm in adm_cmd]).sum()
+        if count >= 1:
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def _calc_cache_changes(cache: list) -> int:
+        """Sum over how many times latest state was in cache"""
+        return (np.asarray(cache) == cache[-1]).sum()
 
     @staticmethod
     def _conv_to_state(obs: str, score: int, done: bool, info: dict) -> np.array:
