@@ -44,6 +44,7 @@ def create_environments():
         path_obj=path_objs,
         path_badact=path_badact,
         debug=True,
+        flatten_actspec=True,
     )
     eval_py_env = TWGameEnv(
         game_path=env_name,
@@ -51,6 +52,7 @@ def create_environments():
         path_obj=path_objs,
         path_badact=path_badact,
         debug=False,
+        flatten_actspec=True,
     )
 
     train_env = tf_py_environment.TFPyEnvironment(train_py_env)
