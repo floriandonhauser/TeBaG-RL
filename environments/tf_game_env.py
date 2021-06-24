@@ -65,7 +65,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
                 v + " " + o for v in self._list_verb for o in self._list_obj
             ]
             self._action_spec = array_spec.BoundedArraySpec(
-                shape=(1,),
+                shape=(),
                 dtype=np.uint16,
                 minimum=0,
                 maximum=(len(self._list_verbobj) - 1),
