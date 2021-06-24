@@ -36,4 +36,4 @@ def create_environments(debug: bool = False, flatten_actspec: bool = True):
     train_env = tf_py_environment.TFPyEnvironment(train_py_env)
     eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
 
-    return train_env, eval_env
+    return train_env, eval_env, train_py_env.num_verb, train_py_env.num_obj
