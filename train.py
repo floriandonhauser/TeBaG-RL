@@ -14,7 +14,7 @@ from tf_agents.trajectories import trajectory
 from tf_agents.utils import common
 
 from agents import HubPolicy
-from environments import TWGameEnv
+from environments import create_environments
 
 import numpy as np
 
@@ -30,34 +30,6 @@ log_interval = 1
 
 num_eval_episodes = 2
 eval_interval = 1
-
-
-# Environments (Max)
-def create_environments():
-    env_name = "resources/rewardsDense_goalBrief.ulx"
-    path_verbs = "resources/words_verbs_short.txt"
-    path_objs = "resources/words_objs_short.txt"
-    path_badact = "resources/bad_actions.txt"
-    train_py_env = TWGameEnv(
-        game_path=env_name,
-        path_verb=path_verbs,
-        path_obj=path_objs,
-        path_badact=path_badact,
-        debug=True,
-        flatten_actspec=True,
-    )
-    eval_py_env = TWGameEnv(
-        game_path=env_name,
-        path_verb=path_verbs,
-        path_obj=path_objs,
-        path_badact=path_badact,
-        debug=False,
-        flatten_actspec=True,
-    )
-
-    train_env = tf_py_environment.TFPyEnvironment(train_py_env)
-    eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
-    return train_env, eval_env, train_py_env.num_verb, train_py_env.num_obj
 
 
 # policy (Florian)
