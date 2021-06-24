@@ -225,7 +225,6 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
 
         count = np.asarray([verb_str in adm for adm in adm_cmd]).sum()
         if count >= 1:
-            print(f"Verb {verb_str} is adm!")
             return True
         else:
             return False
