@@ -64,6 +64,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         self.num_obj = len(self._list_obj)
 
         if self._flatten_actspec:
+            # TODO: First obj is EMPTY and should not be printed
             self._list_verbobj = [
                 v + " " + o for v in self._list_verb for o in self._list_obj
             ]
