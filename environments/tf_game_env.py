@@ -69,7 +69,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             ]
             self._action_spec = array_spec.BoundedArraySpec(
                 shape=(),
-                dtype=np.uint16,
+                dtype=np.int32,
                 minimum=0,
                 maximum=(len(self._list_verbobj) - 1),
                 name="action",
@@ -79,7 +79,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             self._list_verbobj = None
             self._action_spec = array_spec.BoundedArraySpec(
                 shape=(2,),
-                dtype=np.uint16,
+                dtype=np.int32,
                 minimum=[0, 0],
                 maximum=[len(self._list_verb) - 1, len(self._list_obj) - 1],
                 name="action",
