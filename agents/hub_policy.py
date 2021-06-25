@@ -6,7 +6,9 @@ embedding = "https://tfhub.dev/google/nnlm-en-dim50/2"
 
 
 class HubPolicy(network.Network):
-    def __init__(self, input_tensor_spec, action_spec, num_verb, num_obj, name="ActorNetwork"):
+    def __init__(
+        self, input_tensor_spec, action_spec, num_verb, num_obj, name="ActorNetwork"
+    ):
         super().__init__()
 
         num_actions = action_spec.maximum - action_spec.minimum + 1
@@ -36,24 +38,19 @@ class HubPolicy(network.Network):
         """
         if network_state is not None and len(network_state) == 0:
             network_state = None
-        print("Entering call: ")
-        # print(network_state)
-        print("observation.shape", observation.shape)
-        batch = []
-        # 2 for loops should be replaced by reshape operations
-        # the shape is not available as usual for training=true as we have prototype tensors
+
         flattened_observation = tf.reshape(observation, (-1))
-        print("flattened_observation.shape", flattened_observation.shape)
         embedded_observations = self.hub_layer(flattened_observation, training=training)
-        embedded_observations = tf.reshape(embedded_observations, (observation.shape[0], observation.shape[1], 50))
-        print("embedded_observations.shape", embedded_observations.shape)
-        gru_output, network_state = self.gru(embedded_observations, initial_state=network_state)
-        print("gru_output.shape", gru_output.shape)
+        embedded_observations = tf.reshape(
+            embedded_observations, (observation.shape[0], observation.shape[1], 50)
+        )
+        gru_output, network_state = self.gru(
+            embedded_observations, initial_state=network_state
+        )
         gru_output = tf.expand_dims(gru_output, axis=1)
         verb_q_value = self.verb_layer(gru_output, training=training)
         obj_q_value = self.obj_layer(gru_output, training=training)
-        print("verb_q_value.shape", verb_q_value.shape, "obj_q_value.shape", obj_q_value.shape)
         q_value_multiplied = tf.matmul(verb_q_value, obj_q_value, transpose_a=True)
         q_values = tf.reshape(q_value_multiplied, (observation.shape[0], -1))
-        print("q_value_multiplied.shape", q_value_multiplied.shape, "q_values.shape", q_values.shape)
+
         return q_values, ()
