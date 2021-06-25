@@ -80,8 +80,9 @@ def main(
 
     iterator = iter(dataset)
 
-    # some optimization
-    agent.train = common.function(agent.train)
+    # (Optional) Optimize by wrapping some of the code in a graph using TF function.
+    # agent.train = common.function(agent.train)
+
     agent.train_step_counter.assign(0)
 
     # avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
