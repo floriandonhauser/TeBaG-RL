@@ -5,8 +5,7 @@ from environments import TWGameEnv
 
 
 def create_environments(debug: bool = False, flatten_actspec: bool = True):
-    """Environment creation for test and evaluation.
-    """
+    """Environment creation for test and evaluation."""
 
     env_name = "./resources/rewardsDense_goalBrief.ulx"
     path_verbs = "./resources/words_verbs_short.txt"
