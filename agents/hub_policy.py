@@ -10,11 +10,13 @@ class HubPolicy(network.Network):
         super().__init__()
 
         num_actions = action_spec.maximum - action_spec.minimum + 1
-        assert num_actions == num_verb*num_obj
+        assert num_actions == num_verb * num_obj
         self.num_verb = num_verb
         self.num_obj = num_obj
 
-        self.hub_layer = hub.KerasLayer(embedding, input_shape=[], dtype=tf.string, trainable=True)
+        self.hub_layer = hub.KerasLayer(
+            embedding, input_shape=[], dtype=tf.string, trainable=True
+        )
         self.gru = tf.keras.layers.GRU(4, return_state=True)
 
         self.verb_layer = tf.keras.layers.Dense(num_verb, activation=None)

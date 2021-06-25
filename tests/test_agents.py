@@ -9,7 +9,9 @@ from tf_agents.specs import array_spec
 from agents import HubPolicy
 
 
-def create_policy(env) -> Tuple[tf_agents.networks.Network, tf_agents.typing.types.Optimizer]:
+def create_policy(
+    env,
+) -> Tuple[tf_agents.networks.Network, tf_agents.typing.types.Optimizer]:
     learning_rate = 1e-3
     q_net = HubPolicy(env.observation_spec(), env.action_spec())
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
@@ -26,7 +28,9 @@ def test_agent():
     print("Running main in hub_policy.py")
     action_spec = array_spec.BoundedArraySpec((1,), np.int, minimum=0, maximum=10)
     observation_spec = array_spec.ArraySpec((1,), np.str)
-    random_env = random_py_environment.RandomPyEnvironment(observation_spec=observation_spec, action_spec=action_spec)
+    random_env = random_py_environment.RandomPyEnvironment(
+        observation_spec=observation_spec, action_spec=action_spec
+    )
     # Convert the environment to a TFEnv to generate tensors.
     tf_env = tf_py_environment.TFPyEnvironment(random_env)
     print("Created environment")

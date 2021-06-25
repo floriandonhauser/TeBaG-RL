@@ -61,19 +61,22 @@ def main(
     agent = create_agent(train_env, num_verb, num_obj, learning_rate)
     agent.initialize()
 
-    random_policy = random_tf_policy.RandomTFPolicy(train_env.time_step_spec(), train_env.action_spec())
+    random_policy = random_tf_policy.RandomTFPolicy(
+        train_env.time_step_spec(), train_env.action_spec()
+    )
 
     replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
         data_spec=agent.collect_data_spec,
         batch_size=train_env.batch_size,
-        max_length=replay_buffer_max_length)
+        max_length=replay_buffer_max_length,
+    )
 
     collect_data(train_env, random_policy, replay_buffer, initial_collect_steps)
 
     # prepare pipeline
-    dataset = replay_buffer.as_dataset(num_parallel_calls=3,
-                                       sample_batch_size=batch_size,
-                                       num_steps=2).prefetch(3)
+    dataset = replay_buffer.as_dataset(
+        num_parallel_calls=3, sample_batch_size=batch_size, num_steps=2
+    ).prefetch(3)
 
     iterator = iter(dataset)
 
@@ -88,7 +91,9 @@ def main(
     # learning
     for _ in range(num_iterations):
 
-        collect_data(train_env, agent.collect_policy, replay_buffer, collect_steps_per_iteration)
+        collect_data(
+            train_env, agent.collect_policy, replay_buffer, collect_steps_per_iteration
+        )
 
         experience, unused_info = next(iterator)
         train_loss = agent.train(experience).loss
@@ -96,7 +101,7 @@ def main(
         step = agent.train_step_counter.numpy()
 
         if step % log_interval == 0:
-            print(f'step = {step}: loss = {train_loss}')
+            print(f"step = {step}: loss = {train_loss}")
 
         if step % eval_interval == 0:
             avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
