@@ -4,57 +4,14 @@ from __future__ import absolute_import, division, print_function
 
 import matplotlib.pyplot as plt
 
-import tensorflow as tf
-
-from tf_agents.agents.dqn import dqn_agent
-from tf_agents.environments import tf_py_environment
 from tf_agents.policies import random_tf_policy
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.trajectories import trajectory
-from tf_agents.utils import common
 
-from agents import HubPolicy
+from agents import create_agent
 from environments import create_environments
 
 import numpy as np
-
-# Configuration
-num_iterations = 5
-
-initial_collect_steps = 100
-collect_steps_per_iteration = 1
-replay_buffer_max_length = 100000
-batch_size = 64
-learning_rate = 1e-3
-log_interval = 1
-
-num_eval_episodes = 2
-eval_interval = 1
-
-
-# policy (Florian)
-def create_policy(env, num_verb, num_obj, learning_rate=1e-3):
-    observation_spec = env.observation_spec()
-    action_spec = env.action_spec()
-    q_net = HubPolicy(observation_spec, action_spec, num_verb, num_obj)
-    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-
-    return q_net, optimizer
-
-
-def create_agent(env, num_verb, num_obj):
-    train_step_counter = tf.Variable(0)
-
-    q_net, optimizer = create_policy(env, num_verb, num_obj)
-
-    agent = dqn_agent.DqnAgent(
-        env.time_step_spec(),
-        env.action_spec(),
-        q_network=q_net,
-        optimizer=optimizer,
-        td_errors_loss_fn=common.element_wise_squared_loss,  # TODO which loss function?
-        train_step_counter=train_step_counter)
-    return agent
 
 
 def compute_avg_return(environment, policy, num_episodes=10):
@@ -87,9 +44,21 @@ def collect_data(env, policy, buffer, steps):
         collect_step(env, policy, buffer)
 
 
-def main():
-    train_env, eval_env, num_verb, num_obj = create_environments()
-    agent = create_agent(train_env, num_verb, num_obj)
+def main(
+    num_iterations: int = 5000,
+    learning_rate: float = 1e-3,
+    initial_collect_steps: int = 100,
+    collect_steps_per_iteration: int = 1,
+    replay_buffer_max_length: int = 100000,
+    batch_size: int = 64,
+    log_interval: int = 5,
+    num_eval_episodes: int = 10,
+    eval_interval: int = 50,
+    plot_avg_ret: bool = True,
+    debug: bool = False,
+):
+    train_env, eval_env, num_verb, num_obj = create_environments(debug=debug)
+    agent = create_agent(train_env, num_verb, num_obj, learning_rate)
     agent.initialize()
 
     random_policy = random_tf_policy.RandomTFPolicy(train_env.time_step_spec(), train_env.action_spec())
@@ -112,8 +81,9 @@ def main():
     agent.train = common.function(agent.train)
     agent.train_step_counter.assign(0)
 
-    #avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
-    returns = [] # [avg_return]
+    # avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
+    returns = []  # [avg_return]
+    iterations = []
 
     # learning
     for _ in range(num_iterations):
@@ -130,18 +100,23 @@ def main():
 
         if step % eval_interval == 0:
             avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
-            print(f'step = {step}: Average Return = {avg_return}')
+            print(f"step = {step}: Average Return = {avg_return}")
+            iterations.append(step)
             returns.append(avg_return)
 
-    iterations = np.arange(1, num_iterations+1, eval_interval) # range(0, num_iterations + 1, eval_interval)
+    iterations = np.array(iterations)
     returns = np.array(returns)
-    print(iterations.shape, iterations)
-    print(returns.shape, returns)
-    plt.plot(iterations, returns)
-    plt.ylabel('Average Return')
-    plt.xlabel('Iterations')
-    plt.ylim(top=250)
-    plt.savefig('training_curve.png')
+
+    if plot_avg_ret:
+        print(iterations.shape, iterations)
+        print(returns.shape, returns)
+        plt.plot(iterations, returns)
+        plt.ylabel("Average Return")
+        plt.xlabel("Iterations")
+        plt.ylim(top=250)
+        plt.savefig("training_curve.png")
+
+    return returns
 
 
 if __name__ == "__main__":
