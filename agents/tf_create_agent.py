@@ -20,6 +20,7 @@ def create_agent(env, num_verb, num_obj, learning_rate, agent_tag):
         Implemented options ["BertPolicy", "FCPolicy"].
     """
 
+    # global_step = tf.compat.v1.train.get_or_create_global_step()
     train_step_counter = tf.Variable(0, dtype=tf.int64)
     q_net, optimizer = create_policy(env, num_verb, num_obj, learning_rate, agent_tag)
 

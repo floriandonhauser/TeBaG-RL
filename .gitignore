@@ -130,7 +130,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
 .vscode/settings.json
+
 resources/gen_games/
 resources/*.json
 resources/*.ni
@@ -139,3 +142,5 @@ resources/*/*.json
 resources/*/*.ni
 resources/*/*.ulx
 
+
+checkpoints/*
