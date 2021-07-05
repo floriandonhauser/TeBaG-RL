@@ -10,6 +10,7 @@ from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
 
+#defaults
 STR_TYPE = "S500"
 HASH_LIST_LENGTH = 10
 # all positive int!
@@ -38,6 +39,8 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
     flatten_actspec: False
         Flattening action space from 2D (ver, obj) to list of all possible combinations
         for 1D action space.
+    expand_vocab: False
+        Turn on automatic object vocabulary expansion.
     """
 
     def __init__(
@@ -48,22 +51,33 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         path_badact: str,
         debug: bool = False,
         flatten_actspec: bool = False,
+        expand_vocab: bool = False,
+        reward_dict: dict = REWARD_DICT,
+        hash_list_length: int = HASH_LIST_LENGTH,
+        obs_stype: str = STR_TYPE,
     ):
         self._game_path = game_path
         self._path_verb = path_verb
         self._path_obj = path_obj
         self._path_badact = path_badact
-        self._debug = debug
-        self._flatten_actspec = flatten_actspec
+        self._bool_dict = {
+            "debug": debug,
+            "flatten_actspec": flatten_actspec,
+            "expand_vocab": expand_vocab,
+        }
+        self._reward_dict = reward_dict
+        self._hash_list_length = hash_list_length
+        self._obs_stype = obs_stype
 
         self._list_verb = self._get_words(self._path_verb)
         self._list_obj = self._get_words(self._path_obj)
         self._list_badact = self._get_words(self._path_badact)
+        self._missing_obj = []
 
         self.num_verb = len(self._list_verb)
         self.num_obj = len(self._list_obj)
 
-        if self._flatten_actspec:
+        if self._bool_dict["flatten_actspec"]:
             # TODO: First obj is EMPTY and should not be printed
             self._list_verbobj = [
                 v + " " + o for v in self._list_verb for o in self._list_obj
@@ -87,11 +101,11 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             )
 
         self._observation_spec = array_spec.ArraySpec(
-            shape=(2,), dtype=STR_TYPE, name="observation"
+            shape=(2,), dtype=self._obs_stype, name="observation"
         )
 
-        self._hash_dsc = [0] * HASH_LIST_LENGTH
-        self._hash_inv = [0] * HASH_LIST_LENGTH
+        self._hash_dsc = [0] * self._hash_list_length
+        self._hash_inv = [0] * self._hash_list_length
 
         self.curr_TWGym = None
         self._state = None
@@ -124,16 +138,34 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         new_state = self._state
         self._update_hash_cache(new_state)
 
-        if self._debug:
+        if self._bool_dict["debug"]:
             print(self._state)
+
+        if self._bool_dict["expand_vocab"]:
+            for ent in new_state["entities"]:
+                if ent.find(" ") == -1:
+                    sub_str = ent
+                else:
+                    sub_str = ent[ent.rfind(" ") + 1 :]
+
+                if sub_str not in self._missing_obj:
+                    found_obj = self._find_word_in_list(
+                        word_str=sub_str, word_list=self._list_obj
+                    )
+                    if not found_obj:
+                        self._missing_obj.append(sub_str)
 
         # TODO: adjust discount in tf_agents.trajectories.time_step.transition?
         pass_state = self._conv_pass_state(self._state)
         reward = self._calc_reward(new_state, old_state, cmd)
-        if self._debug:
+        if self._bool_dict["debug"]:
             print(f"Reward = {reward}")
 
         if self._episode_ended:
+            if self._bool_dict["expand_vocab"]:
+                for new_word in self._missing_obj:
+                    self._append_word_to_file(word=new_word, file=self._path_obj)
+
             return ts.termination(pass_state, reward)
         else:
             return ts.transition(pass_state, reward=reward, discount=1.0)
@@ -141,7 +173,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
     def _start_game(self):
         """Initializing new game environment in TextWorld"""
 
-        if self._debug:
+        if self._bool_dict["debug"]:
             print("Starting new game.")
 
         request_info = textworld.EnvInfos(
@@ -157,13 +189,13 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         self.curr_TWGym.reset()
 
         self._state = self._conv_to_state(*self.curr_TWGym.step("look"))
-        if self._debug:
+        if self._bool_dict["debug"]:
             print(self._state)
 
     def _conv_to_cmd(self, action_ind: list):
         """Convert indices from agent into string command via imported files."""
 
-        if self._flatten_actspec:
+        if self._bool_dict["flatten_actspec"]:
             cmd_str = self._list_verbobj[action_ind]
         else:
             verb = self._list_verb[action_ind[0]]
@@ -173,7 +205,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             else:
                 obj = self._list_obj[action_ind[1]]
             cmd_str = verb + " " + obj
-        if self._debug:
+        if self._bool_dict["debug"]:
             print(f"Doing: {cmd_str}")
 
         return cmd_str
@@ -188,29 +220,31 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
 
         # Punish useless actions from know game return statements
         if np.array([elem in new_state["obs"] for elem in self._list_badact]).sum():
-            reward -= REWARD_DICT["useless_act_pun"]
+            reward -= self._reward_dict["useless_act_pun"]
 
         # Use change in environment description to reward changes
         inv_change = self._calc_cache_changes(self._hash_inv)
         des_change = self._calc_cache_changes(self._hash_dsc)
         if inv_change <= 1 or des_change <= 1:
-            reward += REWARD_DICT["change_reward"]
+            reward += self._reward_dict["change_reward"]
         else:
-            # at least 1, at max REWARD_DICT["max_loop_pun"]
-            reward -= min([inv_change - 1, des_change - 1, REWARD_DICT["max_loop_pun"]])
+            # at least 1, at max self._reward_dict["max_loop_pun"]
+            reward -= min(
+                [inv_change - 1, des_change - 1, self._reward_dict["max_loop_pun"]]
+            )
 
         # Greatly reward/punish win/lose of game
         if new_state["won"]:
-            reward += REWARD_DICT["win_lose_value"]
+            reward += self._reward_dict["win_lose_value"]
         elif new_state["lost"]:
-            reward -= REWARD_DICT["win_lose_value"]
+            reward -= self._reward_dict["win_lose_value"]
 
         # Check if verb in command was in admissible commands
-        cmd_in_adm = self._find_verb_in_list(
-            verb_str=cmd[: cmd.find(" ")], adm_cmd=new_state["admissible_commands"]
+        cmd_in_adm = self._find_word_in_list(
+            word_str=cmd[: cmd.find(" ")], word_list=new_state["admissible_commands"]
         )
         if cmd_in_adm:
-            reward += REWARD_DICT["verb_in_adm"]
+            reward += self._reward_dict["verb_in_adm"]
 
         return reward
 
@@ -223,11 +257,26 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         self._hash_inv.append(hash(curr_state["inventory"]))
         self._hash_inv.pop(0)
 
+    def _conv_pass_state(self, state):
+        """Select information to pass from current state and create app. np.array."""
+        return np.array(
+            [state["description"], state["inventory"]], dtype=self._obs_stype
+        )
+
     @staticmethod
-    def _find_verb_in_list(verb_str: str, adm_cmd: list) -> bool:
+    def _append_word_to_file(word: str, file: str):
+        with open(file, "a+") as file_object:
+            file_object.seek(0)
+            data = file_object.read(100)
+            if len(data) > 0:
+                file_object.write("\n")
+            file_object.write(word)
+
+    @staticmethod
+    def _find_word_in_list(word_str: str, word_list: list) -> bool:
         """Find whether a substring is in a list of longer strings"""
 
-        count = np.asarray([verb_str in adm for adm in adm_cmd]).sum()
+        count = np.asarray([word_str in adm for adm in word_list]).sum()
         if count >= 1:
             return True
         else:
@@ -254,11 +303,6 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             "admissible_commands": info["admissible_commands"],
             "entities": info["entities"],
         }
-
-    @staticmethod
-    def _conv_pass_state(state):
-        """Select information to pass from current state and create app. np.array."""
-        return np.array([state["description"], state["inventory"]], dtype=STR_TYPE)
 
     @staticmethod
     def _get_words(path: str):
