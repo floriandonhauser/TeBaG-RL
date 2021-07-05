@@ -49,3 +49,7 @@ def create_environments(
     eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
 
     return train_env, eval_env, train_py_env.num_verb, train_py_env.num_obj
+
+
+if __name__ == "__main__":
+    create_environments(debug=True)
