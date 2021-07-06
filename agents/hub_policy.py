@@ -9,8 +9,8 @@ class HubPolicy(network.Network):
     def __init__(
         self, input_tensor_spec, action_spec, num_verb, num_obj, name="ActorNetwork"
     ):
-        super().__init__()
-
+        state_spec = tf.TensorSpec((1,4), tf.float32)
+        super().__init__(input_tensor_spec=input_tensor_spec, state_spec=state_spec, name=name)
         num_actions = action_spec.maximum - action_spec.minimum + 1
         assert num_actions == num_verb * num_obj
         self.num_verb = num_verb
@@ -36,9 +36,11 @@ class HubPolicy(network.Network):
         Returns:
         A tuple `(outputs, new_network_state)`.
         """
+        print("input network state:\n", network_state)
         if network_state is not None and len(network_state) == 0:
             network_state = None
 
+        network_state = None
         flattened_observation = tf.reshape(observation, (-1))
         embedded_observations = self.hub_layer(flattened_observation, training=training)
         embedded_observations = tf.reshape(
@@ -52,5 +54,5 @@ class HubPolicy(network.Network):
         obj_q_value = self.obj_layer(gru_output, training=training)
         q_value_multiplied = tf.matmul(verb_q_value, obj_q_value, transpose_a=True)
         q_values = tf.reshape(q_value_multiplied, (observation.shape[0], -1))
-
-        return q_values, ()
+        print("output network state:\n", network_state)
+        return q_values, network_state
