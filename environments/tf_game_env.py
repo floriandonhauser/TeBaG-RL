@@ -10,7 +10,7 @@ from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
 
-#defaults
+# defaults
 STR_TYPE = "S500"
 HASH_LIST_LENGTH = 10
 # all positive int!
