@@ -2,6 +2,7 @@
 
 from __future__ import absolute_import, division, print_function
 
+import numpy as np
 import matplotlib.pyplot as plt
 
 from tf_agents.policies import random_tf_policy
@@ -10,8 +11,6 @@ from tf_agents.trajectories import trajectory
 
 from agents import create_agent
 from environments import create_environments
-
-import numpy as np
 
 
 def compute_avg_return(environment, policy, num_episodes=10):

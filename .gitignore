@@ -135,3 +135,7 @@ resources/gen_games/
 resources/*.json
 resources/*.ni
 resources/*.ulx
+resources/*/*.json
+resources/*/*.ni
+resources/*/*.ulx
+
