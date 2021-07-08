@@ -2,14 +2,7 @@
 
 from tf_agents.environments import tf_py_environment, utils
 from environments import TWGameEnv
-
-
-DEFAULT_PATHS = {
-    "env_name": "../resources/game_th_lvl2_simple.ulx",
-    "path_verbs": "../resources/words_verbs_twcore.txt",
-    "path_objs": "../resources/words_objs_auto.txt",
-    "path_badact": "../resources/bad_actions.txt",
-}
+from resources import DEFAULT_PATHS
 
 
 def create_environments(
