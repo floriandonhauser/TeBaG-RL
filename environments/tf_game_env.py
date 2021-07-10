@@ -79,9 +79,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
 
         if self._bool_dict["flatten_actspec"]:
             # TODO: First obj is EMPTY and should not be printed
-            self._list_verbobj = [
-                v + " " + o for v in self._list_verb for o in self._list_obj
-            ]
+            self._list_verbobj = [v + " " + o for v in self._list_verb for o in self._list_obj]
             self._action_spec = array_spec.BoundedArraySpec(
                 shape=(),
                 dtype=np.int32,
@@ -100,9 +98,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
                 name="action",
             )
 
-        self._observation_spec = array_spec.ArraySpec(
-            shape=(2,), dtype=self._obs_stype, name="observation"
-        )
+        self._observation_spec = array_spec.ArraySpec(shape=(2,), dtype=self._obs_stype, name="observation")
 
         self._hash_dsc = [0] * self._hash_list_length
         self._hash_inv = [0] * self._hash_list_length
@@ -149,9 +145,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
                     sub_str = ent[ent.rfind(" ") + 1 :]
 
                 if sub_str not in self._missing_obj:
-                    found_obj = self._find_word_in_list(
-                        word_str=sub_str, word_list=self._list_obj
-                    )
+                    found_obj = self._find_word_in_list(word_str=sub_str, word_list=self._list_obj)
                     if not found_obj:
                         self._missing_obj.append(sub_str)
 
@@ -229,9 +223,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             reward += self._reward_dict["change_reward"]
         else:
             # at least 1, at max self._reward_dict["max_loop_pun"]
-            reward -= min(
-                [inv_change - 1, des_change - 1, self._reward_dict["max_loop_pun"]]
-            )
+            reward -= min([inv_change - 1, des_change - 1, self._reward_dict["max_loop_pun"]])
 
         # Greatly reward/punish win/lose of game
         if new_state["won"]:
@@ -240,9 +232,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             reward -= self._reward_dict["win_lose_value"]
 
         # Check if verb in command was in admissible commands
-        cmd_in_adm = self._find_word_in_list(
-            word_str=cmd[: cmd.find(" ")], word_list=new_state["admissible_commands"]
-        )
+        cmd_in_adm = self._find_word_in_list(word_str=cmd[: cmd.find(" ")], word_list=new_state["admissible_commands"])
         if cmd_in_adm:
             reward += self._reward_dict["verb_in_adm"]
 
@@ -259,9 +249,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
 
     def _conv_pass_state(self, state):
         """Select information to pass from current state and create app. np.array."""
-        return np.array(
-            [state["description"], state["inventory"]], dtype=self._obs_stype
-        )
+        return np.array([state["description"], state["inventory"]], dtype=self._obs_stype)
 
     @staticmethod
     def _append_word_to_file(word: str, file: str):

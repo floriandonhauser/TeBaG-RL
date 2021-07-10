@@ -2,6 +2,7 @@
 
 import os
 from glob import glob
+
 from environments import create_environments
 
 if __name__ == "__main__":

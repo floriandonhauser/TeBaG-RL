@@ -6,9 +6,7 @@ embedding = "https://tfhub.dev/google/nnlm-en-dim50/2"
 
 
 class HubPolicy(network.Network):
-    def __init__(
-        self, input_tensor_spec, action_spec, num_verb, num_obj, name="ActorNetwork"
-    ):
+    def __init__(self, input_tensor_spec, action_spec, num_verb, num_obj, name="ActorNetwork"):
         super().__init__()
 
         num_actions = action_spec.maximum - action_spec.minimum + 1
@@ -16,9 +14,7 @@ class HubPolicy(network.Network):
         self.num_verb = num_verb
         self.num_obj = num_obj
 
-        self.hub_layer = hub.KerasLayer(
-            embedding, input_shape=[], dtype=tf.string, trainable=True
-        )
+        self.hub_layer = hub.KerasLayer(embedding, input_shape=[], dtype=tf.string, trainable=True)
         self.gru = tf.keras.layers.GRU(4, return_state=True)
 
         self.verb_layer = tf.keras.layers.Dense(num_verb, activation=None)
@@ -41,12 +37,8 @@ class HubPolicy(network.Network):
 
         flattened_observation = tf.reshape(observation, (-1))
         embedded_observations = self.hub_layer(flattened_observation, training=training)
-        embedded_observations = tf.reshape(
-            embedded_observations, (observation.shape[0], observation.shape[1], 50)
-        )
-        gru_output, network_state = self.gru(
-            embedded_observations, initial_state=network_state
-        )
+        embedded_observations = tf.reshape(embedded_observations, (observation.shape[0], observation.shape[1], 50))
+        gru_output, network_state = self.gru(embedded_observations, initial_state=network_state)
         gru_output = tf.expand_dims(gru_output, axis=1)
         verb_q_value = self.verb_layer(gru_output, training=training)
         obj_q_value = self.obj_layer(gru_output, training=training)

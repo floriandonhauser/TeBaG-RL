@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if True
+if true
 then
   for i in {1..1000}
   do
@@ -11,7 +11,7 @@ then
   done
 fi
 
-if True
+if true
 then
   for i in {1000..1200}
   do
