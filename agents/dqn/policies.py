@@ -4,6 +4,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 from tf_agents.environments.tf_py_environment import tensor_spec
 from tf_agents.networks import network, sequential
+from tf_agents.utils import common
 
 from agents.common.policies import BasePolicy
 from agents.common.util import Schedule
@@ -45,7 +46,8 @@ class QNetwork(BasePolicy):
             bias_initializer=tf.keras.initializers.Constant(-0.2),
         )
         self.q_net = tf.keras.Sequential()
-        self.q_net.add(dense_layers)
+        for layer in dense_layers:
+            self.q_net.add(layer)
         self.q_net.add(q_values_layer)
 
     def call(self, observation, network_state=None, deterministic=False):
@@ -98,6 +100,7 @@ class DQNPolicy(BasePolicy):
             lr_schedule: Schedule,
             optimizer_class: Type[tf.optimizers.Optimizer] = tf.optimizers.Adam,
             optimizer_kwargs: Optional[Dict[str, Any]] = None,
+            tau=1.0
     ):
         super(DQNPolicy, self).__init__(
             observation_spec,
@@ -105,6 +108,7 @@ class DQNPolicy(BasePolicy):
             optimizer_class=optimizer_class,
             optimizer_kwargs=optimizer_kwargs,
         )
+        self.tau = tau
 
         self.net_args = {
             "observation_spec": self.observation_spec,
@@ -124,9 +128,9 @@ class DQNPolicy(BasePolicy):
 
         self.q_net = self.make_q_net()
         self.q_net_target = self.make_q_net()
-        self.q_net_target.load_state_dict(self.q_net.state_dict())
+        common.soft_variables_update(self.q_net.trainable_variables, self.q_net_target.trainable_variables, self.tau)
         # Setup optimizer with initial learning rate
-        self.optimizer = self.optimizer_class(self.parameters(), learning_rate=lr_schedule(1), **self.optimizer_kwargs)
+        self.optimizer = self.optimizer_class(learning_rate=lr_schedule(1), **self.optimizer_kwargs)
 
     def make_q_net(self) -> QNetwork:
         # Make sure we always have separate networks for features extractors etc
