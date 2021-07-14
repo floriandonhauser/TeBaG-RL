@@ -26,11 +26,11 @@ class BaseModel(tf.Module, ABC):
     """
 
     def __init__(
-        self,
-        observation_spec: TFPyEnvironment,
-        action_spec: TFPyEnvironment,
-        optimizer_class: Type[tf.optimizers.Optimizer] = tf.optimizers.Adam,
-        optimizer_kwargs: Optional[Dict[str, Any]] = None,
+            self,
+            observation_spec: TFPyEnvironment,
+            action_spec: TFPyEnvironment,
+            optimizer_class: Type[tf.optimizers.Optimizer] = tf.optimizers.Adam,
+            optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super(BaseModel, self).__init__()
 
@@ -48,45 +48,6 @@ class BaseModel(tf.Module, ABC):
     def call(self, *args, **kwargs):
         pass
 
-    def _get_constructor_parameters(self) -> Dict[str, Any]:
-        """
-        Get data that need to be saved in order to re-create the model when loading it from disk.
-
-        :return: The dictionary to pass to the as kwargs constructor when reconstruction this model.
-        """
-        return dict(
-            observation_spec=self.observation_spec,
-            action_spec=self.action_spec,
-        )
-
-    def save(self, path: str) -> None:
-        """
-        Save model to a given location.
-        TODO get working
-        :param path:
-        """
-        # tf.save({"state_dict": self.state_dict(), "data": self._get_constructor_parameters()}, path)
-        pass
-
-    @classmethod
-    def load(cls, path: str, device: Union[tf.device, str] = "auto") -> "BaseModel":
-        """
-        Load model from path.
-        TODO
-        :param path:
-        :param device: Device on which the policy should be loaded.
-        :return:
-        device = get_device(device)
-        saved_variables = th.load(path, map_location=device)
-        # Create policy object
-        model = cls(**saved_variables["data"])  # pytype: disable=not-instantiable
-        # Load weights
-        model.load_state_dict(saved_variables["state_dict"])
-        model.to(device)
-        return model
-        """
-        pass
-
 
 class BasePolicy(BaseModel):
     """The base policy object.
@@ -99,12 +60,6 @@ class BasePolicy(BaseModel):
 
     def __init__(self, *args, squash_output: bool = False, **kwargs):
         super(BasePolicy, self).__init__(*args, **kwargs)
-
-    @staticmethod
-    def _dummy_schedule(progress_remaining: float) -> float:
-        """(float) Useful for pickling policy."""
-        del progress_remaining
-        return 0.0
 
     @abstractmethod
     def _predict(self, observation: tf.Tensor, state: tf.Tensor, deterministic: bool = False) -> tf.Tensor:
@@ -121,11 +76,10 @@ class BasePolicy(BaseModel):
         """
 
     def predict(
-        self,
-        observation: np.ndarray,
-        state: Optional[np.ndarray] = None,
-        mask: Optional[np.ndarray] = None,
-        deterministic: bool = False,
+            self,
+            observation: np.ndarray,
+            state: Optional[np.ndarray] = None,
+            deterministic: bool = False,
     ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """
         Get the policy action and state from an observation (and optional state).
@@ -140,6 +94,6 @@ class BasePolicy(BaseModel):
         if state is None:
             state = ()
 
-        actions,state = self._predict(observation, state, deterministic=deterministic)
+        actions, state = self._predict(observation, state, deterministic=deterministic)
 
         return actions, state

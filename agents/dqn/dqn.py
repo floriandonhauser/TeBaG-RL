@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 from tf_agents.environments import TFPyEnvironment
 from tf_agents.policies import random_py_policy, random_tf_policy
-from tf_agents.replay_buffers import tf_uniform_replay_buffer
+from tf_agents.replay_buffers import tf_uniform_replay_buffer, replay_buffer
 from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import policy_step, trajectory
 
@@ -28,8 +28,6 @@ class DQN:
     :param exploration_fraction: fraction of entire training period over which the exploration rate is reduced
     :param exploration_initial_eps: initial value of random action probability
     :param exploration_final_eps: final value of random action probability
-    :param max_grad_norm: The maximum value for the gradient clipping
-    :param create_eval_env: Whether to create a second environment that will be
         used for evaluating the agent periodically. (Only available when passing string for the environment)
 
     """
@@ -50,8 +48,6 @@ class DQN:
             exploration_fraction: float = 0.1,
             exploration_initial_eps: float = 1.0,
             exploration_final_eps: float = 0.05,
-            max_grad_norm: float = 10,
-            create_eval_env: bool = False,
             policy_kwargs: Optional[Dict[str, Any]] = None,
             verbose: int = 0,
             seed: Optional[int] = None,
@@ -62,6 +58,9 @@ class DQN:
         self.env = env
         self.eval_env = None
         self.verbose = verbose
+        self.tau = tau
+        self.gamma = gamma
+        self.gradient_steps = gradient_steps
         self.policy_kwargs = {} if policy_kwargs is None else policy_kwargs
         self._observation_spec = env.observation_spec()
         self._action_spec = env.action_spec()
@@ -77,60 +76,56 @@ class DQN:
                                                            self._time_step_spec)
         self.n_envs = 1
         self.num_timesteps = 0
+        self._n_updates = 0
 
         self.seed = seed
         self.learning_rate = learning_rate
         self.lr_schedule = None
-        self._last_obs = None
-        self._last_dones = None
         self._episode_num = tf.Variable(0)
         # Track the training progress from [1,0] used for updating the learning rate
         self._current_progress_remaining = 1
 
-        # from off_policy_algorithm
-
+        # for the replay buffer
         self.buffer_size = buffer_size
         self.batch_size = batch_size
         self.learning_starts = learning_starts
-        self.tau = tau
-        self.gamma = gamma
-        self.gradient_steps = gradient_steps
 
         # Save train freq parameter
         self.train_freq = train_freq
-        self.replay_buffer = None  # type: Optional[ReplayBuffer]
+        self.replay_buffer = None  # type: Optional[replay_buffer.ReplayBuffer]
 
         self.exploration_initial_eps = exploration_initial_eps
         self.exploration_final_eps = exploration_final_eps
         self.exploration_fraction = exploration_fraction
         self.target_update_interval = target_update_interval
-        self.max_grad_norm = max_grad_norm
         # "epsilon" for the epsilon-greedy exploration
         self.exploration_rate = 0.0
-        # Linear schedule will be defined in `_setup_model()`
+        # Linear schedule will be defined in `_setup_model()` TODO not used yet
         self.exploration_schedule = None
         self.q_net, self.q_net_target = None, None
 
         if _init_setup_model:
             self._setup_model()
 
-    def _setup_lr_schedule(self) -> None:
-        """Transform to callable if needed."""
-        self.lr_schedule = get_schedule_fn(self.learning_rate)
+    def _setup_model(self) -> None:
+        self._setup_lr_schedule()
+        self.set_random_seed(self.seed)
+        self.replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
+            self._trajectory_spec, batch_size=self.batch_size, max_length=self.buffer_size
+        )
+        self.policy = self.policy_class(  # pytype:disable=not-instantiable
+            self._observation_spec,
+            self._action_spec,
+            self.lr_schedule,
+            **self.policy_kwargs,  # pytype:disable=not-instantiable
+        )
 
-    def _update_learning_rate(self, optimizers: Union[List[tf.optimizers.Optimizer], tf.optimizers.Optimizer]) -> None:
-        """
-        Update the optimizers learning rate using the current learning rate schedule
-        and the current progress remaining (from 1 to 0).
-
-        :param optimizers:
-            An optimizer or a list of optimizers.
-        """
-
-        if not isinstance(optimizers, list):
-            optimizers = [optimizers]
-        for optimizer in optimizers:
-            update_learning_rate(optimizer, self.lr_schedule(self._current_progress_remaining))
+        # Convert train freq parameter to TrainFreq object
+        # self._convert_train_freq() TODO
+        self._create_aliases()
+        self.exploration_schedule = get_linear_fn(
+            self.exploration_initial_eps, self.exploration_final_eps, self.exploration_fraction
+        )
 
     def _setup_learn(
             self,
@@ -177,57 +172,9 @@ class DQN:
 
         return total_timesteps
 
-    def set_random_seed(self, seed: Optional[int] = None) -> None:
-        """
-        Set the seed of the pseudo-random generators
-        (python, numpy, pytorch, gym, action_space)
-
-        :param seed:
-        """
-        if seed is None:
-            return
-        set_random_seed(seed)
-        if self.env is not None:
-            self.env.seed(seed)
-        if self.eval_env is not None:
-            self.eval_env.seed(seed)
-
-    def _setup_model(self) -> None:
-        self._setup_lr_schedule()
-        self.set_random_seed(self.seed)
-        self.replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
-            self._trajectory_spec, batch_size=self.batch_size, max_length=self.buffer_size
-        )
-        self.policy = self.policy_class(  # pytype:disable=not-instantiable
-            self._observation_spec,
-            self._action_spec,
-            self.lr_schedule,
-            **self.policy_kwargs,  # pytype:disable=not-instantiable
-        )
-
-        # Convert train freq parameter to TrainFreq object
-        # self._convert_train_freq() TODO
-        self._create_aliases()
-        self.exploration_schedule = get_linear_fn(
-            self.exploration_initial_eps, self.exploration_final_eps, self.exploration_fraction
-        )
-
-    def _create_aliases(self) -> None:
-        self.q_net = self.policy.q_net
-        self.q_net_target = self.policy.q_net_target
-
-    def _on_step(self) -> None:
-        """
-        Update the exploration rate and target network if needed.
-        This method is called in ``collect_rollouts()`` after each step in the environment.
-        """
-
-        self.exploration_rate = self.exploration_schedule(self._current_progress_remaining)
-
-    def train(self,iterator, gradient_steps: int,  batch_size: int = 100) -> None:
+    def train(self, iterator, gradient_steps: int, batch_size: int = 100) -> None:
         # Update learning rate according to schedule
         self._update_learning_rate(self.policy.optimizer)
-
 
         losses = []
         for _ in range(gradient_steps):
@@ -262,9 +209,6 @@ class DQN:
 
         # Increase update counter
         self._n_updates += gradient_steps
-
-        logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
-        logger.record("train/loss", np.mean(losses))
 
     def predict(
             self,
@@ -320,7 +264,7 @@ class DQN:
                 # If no `gradient_steps` is specified,
                 # do as many gradients steps as steps performed during the rollout
                 gradient_steps = self.gradient_steps if self.gradient_steps > 0 else 1
-                self.train(iterator,gradient_steps=gradient_steps, batch_size=self.batch_size)
+                self.train(iterator, gradient_steps=gradient_steps, batch_size=self.batch_size)
         return self
 
     def collect_data(self):
@@ -331,3 +275,41 @@ class DQN:
         traj = trajectory.from_transition(time_step, action_step, next_time_step)
         self.num_timesteps += 1
         self.replay_buffer.add_batch(traj)
+
+    def set_random_seed(self, seed: Optional[int] = None) -> None:
+        """
+        Set the seed of the pseudo-random generators
+        (python, numpy, pytorch, gym, action_space)
+
+        :param seed:
+        """
+        if seed is None:
+            return
+        set_random_seed(seed)
+        if self.env is not None:
+            self.env.seed(seed)
+        if self.eval_env is not None:
+            self.eval_env.seed(seed)
+
+    def _create_aliases(self) -> None:
+        self.q_net = self.policy.q_net
+        self.q_net_target = self.policy.q_net_target
+
+    def _setup_lr_schedule(self) -> None:
+        """Transform to callable if needed."""
+        self.lr_schedule = get_schedule_fn(self.learning_rate)
+
+    def _update_learning_rate(self,
+                              optimizers: Union[List[tf.optimizers.Optimizer], tf.optimizers.Optimizer]) -> None:
+        """
+        Update the optimizers learning rate using the current learning rate schedule
+        and the current progress remaining (from 1 to 0).
+
+        :param optimizers:
+            An optimizer or a list of optimizers.
+        """
+
+        if not isinstance(optimizers, list):
+            optimizers = [optimizers]
+        for optimizer in optimizers:
+            update_learning_rate(optimizer, self.lr_schedule(self._current_progress_remaining))

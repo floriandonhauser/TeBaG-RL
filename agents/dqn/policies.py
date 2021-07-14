@@ -60,7 +60,6 @@ class QNetwork(BasePolicy):
         :param deterministic:
         :returns: A tuple `(outputs, new_network_state)`.
         """
-        training = not deterministic
 
         q_values = self.q_net(observation)
 
@@ -74,7 +73,7 @@ class QNetwork(BasePolicy):
         :return: Greedy best action
         """
 
-        q_values, network_state = self.call(observation, network_state, False)
+        q_values, network_state = self.call(observation, network_state, deterministic)
         action = tf.math.argmax(q_values, axis=1)
         return action, network_state
 
@@ -140,20 +139,7 @@ class DQNPolicy(BasePolicy):
         return QNetwork(**self.net_args)
 
     def call(self, obs: tf.Tensor, state: tf.Tensor, deterministic: bool = True) -> tf.Tensor:
-        return self._predict(obs, state, deterministic=deterministic)
+        return self._predict(obs, state, deterministic)
 
     def _predict(self, obs: tf.Tensor, state: tf.Tensor, deterministic: bool = True) -> tf.Tensor:
-        return self.q_net._predict(obs, state, deterministic=deterministic)
-
-    def _get_constructor_parameters(self) -> Dict[str, Any]:
-        data = super()._get_constructor_parameters()
-
-        data.update(
-            dict(
-                net_arch=self.net_args["net_arch"],
-                lr_schedule=self._dummy_schedule,  # dummy lr schedule, not needed for loading policy alone
-                optimizer_class=self.optimizer_class,
-                optimizer_kwargs=self.optimizer_kwargs,
-            )
-        )
-        return data
+        return self.q_net.predict(obs, state, deterministic)
