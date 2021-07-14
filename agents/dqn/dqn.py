@@ -41,7 +41,7 @@ class DQN:
             learning_rate: Union[float, Schedule] = 1e-4,
             buffer_size: int = 1000000,
             learning_starts: int = 50000,
-            batch_size: int = 32,
+            batch_size: int = 1,
             tau: float = 1.0,
             gamma: float = 0.99,
             train_freq: Union[int, Tuple[int, str]] = 4,
@@ -224,32 +224,30 @@ class DQN:
 
         self.exploration_rate = self.exploration_schedule(self._current_progress_remaining)
 
-    def train(self, gradient_steps: int, batch_size: int = 100) -> None:
+    def train(self,iterator, gradient_steps: int,  batch_size: int = 100) -> None:
         # Update learning rate according to schedule
         self._update_learning_rate(self.policy.optimizer)
 
-        dataset = self.replay_buffer.as_dataset()
 
         losses = []
         for _ in range(gradient_steps):
-            # Sample replay buffer TODO different replaybuffer
-            replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
+            experience, unused_info = next(iterator)
 
             # Compute the next Q-values using the target network
-            next_q_values = self.q_net_target(replay_data.next_observations)
+            next_q_values, state = self.q_net_target.call(experience.observation)
             # Follow greedy policy: use the one with the highest value
             next_q_values, _ = next_q_values.max(dim=1)
             # Avoid potential broadcast issue
             next_q_values = next_q_values.reshape(-1, 1)
             # 1-step TD target
-            target_q_values = replay_data.rewards + (1 - replay_data.dones) * self.gamma * next_q_values
+            target_q_values = experience.reward + (1 - experience.dones) * self.gamma * next_q_values
 
             # Get current Q-values estimates
             with tf.GradientTape() as tape:
-                current_q_values = self.q_net(replay_data.observations)
+                current_q_values = self.q_net(experience.observations)
 
                 # Retrieve the q-values for the actions from the replay buffer
-                current_q_values = tf.gather(current_q_values, dim=1, index=replay_data.actions.long())
+                current_q_values = tf.gather(current_q_values, dim=1, index=experience.actions.long())
 
                 loss = tf.keras.losses.huber(target_q_values, current_q_values)
 
@@ -322,13 +320,14 @@ class DQN:
                 # If no `gradient_steps` is specified,
                 # do as many gradients steps as steps performed during the rollout
                 gradient_steps = self.gradient_steps if self.gradient_steps > 0 else 1
-                self.train(batch_size=self.batch_size, gradient_steps=gradient_steps)
+                self.train(iterator,gradient_steps=gradient_steps, batch_size=self.batch_size)
         return self
 
     def collect_data(self):
         time_step = self.env.current_time_step()
-        action_step = self.q_net.predict(time_step)
+        action_step, network_state = self.q_net.predict(time_step.observation)
+        action_step = policy_step.PolicyStep(action_step, network_state, self._info_spec)  # TODO info_spec??
         next_time_step = self.env.step(action_step.action)
         traj = trajectory.from_transition(time_step, action_step, next_time_step)
-
+        self.num_timesteps += 1
         self.replay_buffer.add_batch(traj)

@@ -138,8 +138,8 @@ class BasePolicy(BaseModel):
             (used in recurrent policies)
         """
         if state is None:
-            state = self.initial_state
+            state = ()
 
-        actions = self._predict(observation, state, deterministic=deterministic)
+        actions,state = self._predict(observation, state, deterministic=deterministic)
 
         return actions, state

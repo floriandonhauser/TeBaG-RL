@@ -46,9 +46,11 @@ class QNetwork(BasePolicy):
             bias_initializer=tf.keras.initializers.Constant(-0.2),
         )
         self.q_net = tf.keras.Sequential()
+        self.q_net.add(tf.keras.layers.Input(self.observation_spec.shape))
         for layer in dense_layers:
             self.q_net.add(layer)
         self.q_net.add(q_values_layer)
+        self.q_net.build()
 
     def call(self, observation, network_state=None, deterministic=False):
         """A wrapper around `Network.call`.
@@ -64,7 +66,7 @@ class QNetwork(BasePolicy):
 
         return q_values, network_state
 
-    def _predict(self, observation: tf.Tensor, network_state=()):
+    def _predict(self, observation: tf.Tensor, network_state=(), deterministic=False):
         """
         Greedy predict policy
         :param observation: Observation
@@ -72,9 +74,9 @@ class QNetwork(BasePolicy):
         :return: Greedy best action
         """
 
-        q_values = self.__call__(observation, network_state, False)
-        action = q_values.argmax(dim=1).reshape(-1)
-        return action
+        q_values, network_state = self.call(observation, network_state, False)
+        action = tf.math.argmax(q_values, axis=1)
+        return action, network_state
 
 
 class DQNPolicy(BasePolicy):
@@ -128,7 +130,8 @@ class DQNPolicy(BasePolicy):
 
         self.q_net = self.make_q_net()
         self.q_net_target = self.make_q_net()
-        common.soft_variables_update(self.q_net.trainable_variables, self.q_net_target.trainable_variables,1.0)
+        common.soft_variables_update(self.q_net.q_net.trainable_variables, self.q_net_target.q_net.trainable_variables,
+                                     1.0)
         # Setup optimizer with initial learning rate
         self.optimizer = self.optimizer_class(learning_rate=lr_schedule(1), **self.optimizer_kwargs)
 

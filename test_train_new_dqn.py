@@ -47,6 +47,6 @@ print(type(env))
 train_py_env = tf_py_environment.TFPyEnvironment(suite_gym.load(env_name))
 eval_py_env = tf_py_environment.TFPyEnvironment(suite_gym.load(env_name))
 
-agent = DQN(DQNPolicy, train_py_env, 0.4, 10000, 1000, target_update_interval=100)
+agent = DQN(DQNPolicy, train_py_env, 0.4, buffer_size=10000, learning_starts=100, target_update_interval=100)
 
 agent.learn(1000, eval_env=eval_py_env)
