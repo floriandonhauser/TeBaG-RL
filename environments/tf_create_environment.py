@@ -2,7 +2,7 @@
 
 from tf_agents.environments import tf_py_environment, utils
 
-from environments import TWGameEnv
+from environments.tf_game_env import TWGameEnv
 from resources import DEFAULT_PATHS
 
 

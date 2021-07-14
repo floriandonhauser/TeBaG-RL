@@ -17,8 +17,8 @@ class BaseModel(tf.Module, ABC):
     In the case of policies, the prediction is an action. In the case of critics, it is the
     estimated value of the observation.
 
-    :param observation_space: The observation space of the environment
-    :param action_space: The action space of the environment
+    :param observation_spec: The observation space of the environment
+    :param action_spec: The action space of the environment
     :param optimizer_class: The optimizer to use,
         ``th.optim.Adam`` by default
     :param optimizer_kwargs: Additional keyword arguments,
@@ -27,8 +27,8 @@ class BaseModel(tf.Module, ABC):
 
     def __init__(
         self,
-        observation_space: TFPyEnvironment,
-        action_space: TFPyEnvironment,
+        observation_spec: TFPyEnvironment,
+        action_spec: TFPyEnvironment,
         optimizer_class: Type[tf.optimizers.Optimizer] = tf.optimizers.Adam,
         optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ):
@@ -37,15 +37,15 @@ class BaseModel(tf.Module, ABC):
         if optimizer_kwargs is None:
             optimizer_kwargs = {}
 
-        self.observation_space = observation_space
-        self.action_space = action_space
+        self.observation_spec = observation_spec
+        self.action_spec = action_spec
 
         self.optimizer_class = optimizer_class
         self.optimizer_kwargs = optimizer_kwargs
         self.optimizer = None  # type: Optional[tf.optimizers.Optimizer]
 
     @abstractmethod
-    def forward(self, *args, **kwargs):
+    def call(self, *args, **kwargs):
         pass
 
     def _get_constructor_parameters(self) -> Dict[str, Any]:
@@ -55,8 +55,8 @@ class BaseModel(tf.Module, ABC):
         :return: The dictionary to pass to the as kwargs constructor when reconstruction this model.
         """
         return dict(
-            observation_space=self.observation_space,
-            action_space=self.action_space,
+            observation_spec=self.observation_spec,
+            action_spec=self.action_spec,
         )
 
     def save(self, path: str) -> None:

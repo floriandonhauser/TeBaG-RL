@@ -7,6 +7,7 @@ from tf_agents.environments import TFPyEnvironment
 from tf_agents.policies import random_py_policy
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.specs import tensor_spec
+from tf_agents.trajectories import policy_step, trajectory
 
 from agents.common.util import Schedule, get_linear_fn, get_schedule_fn, set_random_seed, update_learning_rate
 from agents.dqn.policies import DQNPolicy
@@ -62,8 +63,18 @@ class DQN:
         self.eval_env = None
         self.verbose = verbose
         self.policy_kwargs = {} if policy_kwargs is None else policy_kwargs
-        self.observation_spec = None
-        self.action_spec = None
+        self._observation_spec = env.observation_spec()
+        self._action_spec = env.action_spec()
+        self._info_spec = tensor_spec.from_spec(())
+        self._time_step_spec = tensor_spec.from_spec(env.time_step_spec())
+        self._action_spec = tensor_spec.from_spec(env.action_spec())
+        self._policy_state_spec = tensor_spec.from_spec(())
+        self._policy_step_spec = policy_step.PolicyStep(action=self._action_spec,
+                                                        state=self._policy_state_spec,
+                                                        info=self._info_spec)
+        self._trajectory_spec = trajectory.from_transition(self._time_step_spec,
+                                                           self._policy_step_spec,
+                                                           self._time_step_spec)
         self.n_envs = 1
         self.num_timesteps = tf.Variable(0)
 
@@ -161,8 +172,6 @@ class DQN:
         if eval_env is not None and self.seed is not None:
             eval_env.seed(self.seed)
 
-        eval_env = eval_env
-
         # Configure logger's outputs
         # utils.configure_logger(self.verbose, self.tensorboard_log, tb_log_name, reset_num_timesteps)
 
@@ -187,11 +196,11 @@ class DQN:
         self._setup_lr_schedule()
         self.set_random_seed(self.seed)
         self.replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
-            self.collect_data_spec, batch_size=self.batch_size, max_lenght=self.buffer_size
+            self._trajectory_spec, batch_size=self.batch_size, max_length=self.buffer_size
         )
         self.policy = self.policy_class(  # pytype:disable=not-instantiable
-            self.observation_spec,
-            self.action_spec,
+            self._observation_spec,
+            self._action_spec,
             self.lr_schedule,
             **self.policy_kwargs,  # pytype:disable=not-instantiable
         )

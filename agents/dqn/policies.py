@@ -18,7 +18,7 @@ class QNetwork(BasePolicy):
     """
 
     def __init__(self, observation_spec, action_spec):
-        super().__init__()
+        super().__init__(observation_spec, action_spec)
 
         num_actions = action_spec.maximum - action_spec.minimum + 1
         fc_layer_params = (100, 50)
@@ -93,22 +93,22 @@ class DQNPolicy(BasePolicy):
 
     def __init__(
             self,
-            observation_space: tensor_spec,
-            action_space: tensor_spec,
+            observation_spec: tensor_spec,
+            action_spec: tensor_spec,
             lr_schedule: Schedule,
             optimizer_class: Type[tf.optimizers.Optimizer] = tf.optimizers.Adam,
             optimizer_kwargs: Optional[Dict[str, Any]] = None,
     ):
         super(DQNPolicy, self).__init__(
-            observation_space,
-            action_space,
+            observation_spec,
+            action_spec,
             optimizer_class=optimizer_class,
             optimizer_kwargs=optimizer_kwargs,
         )
 
         self.net_args = {
-            "observation_space": self.observation_space,
-            "action_space": self.action_space,
+            "observation_spec": self.observation_spec,
+            "action_spec": self.action_spec,
         }
 
         self.q_net, self.q_net_target = None, None
@@ -132,7 +132,7 @@ class DQNPolicy(BasePolicy):
         # Make sure we always have separate networks for features extractors etc
         return QNetwork(**self.net_args)
 
-    def forward(self, obs: tf.Tensor, state: tf.Tensor, deterministic: bool = True) -> tf.Tensor:
+    def call(self, obs: tf.Tensor, state: tf.Tensor, deterministic: bool = True) -> tf.Tensor:
         return self._predict(obs, state, deterministic=deterministic)
 
     def _predict(self, obs: tf.Tensor, state: tf.Tensor, deterministic: bool = True) -> tf.Tensor:
