@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 import numpy as np
 import tensorflow as tf
 from tf_agents.environments import TFPyEnvironment
-from tf_agents.policies import random_py_policy
+from tf_agents.policies import random_py_policy, random_tf_policy
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import policy_step, trajectory
@@ -35,27 +35,27 @@ class DQN:
     """
 
     def __init__(
-        self,
-        policy: Union[str, Type[DQNPolicy]],
-        env: TFPyEnvironment,
-        learning_rate: Union[float, Schedule] = 1e-4,
-        buffer_size: int = 1000000,
-        learning_starts: int = 50000,
-        batch_size: int = 32,
-        tau: float = 1.0,
-        gamma: float = 0.99,
-        train_freq: Union[int, Tuple[int, str]] = 4,
-        gradient_steps: int = 1,
-        target_update_interval: int = 10000,
-        exploration_fraction: float = 0.1,
-        exploration_initial_eps: float = 1.0,
-        exploration_final_eps: float = 0.05,
-        max_grad_norm: float = 10,
-        create_eval_env: bool = False,
-        policy_kwargs: Optional[Dict[str, Any]] = None,
-        verbose: int = 0,
-        seed: Optional[int] = None,
-        _init_setup_model: bool = True,
+            self,
+            policy: Union[str, Type[DQNPolicy]],
+            env: TFPyEnvironment,
+            learning_rate: Union[float, Schedule] = 1e-4,
+            buffer_size: int = 1000000,
+            learning_starts: int = 50000,
+            batch_size: int = 32,
+            tau: float = 1.0,
+            gamma: float = 0.99,
+            train_freq: Union[int, Tuple[int, str]] = 4,
+            gradient_steps: int = 1,
+            target_update_interval: int = 10000,
+            exploration_fraction: float = 0.1,
+            exploration_initial_eps: float = 1.0,
+            exploration_final_eps: float = 0.05,
+            max_grad_norm: float = 10,
+            create_eval_env: bool = False,
+            policy_kwargs: Optional[Dict[str, Any]] = None,
+            verbose: int = 0,
+            seed: Optional[int] = None,
+            _init_setup_model: bool = True,
     ):
 
         self.policy_class = policy
@@ -76,7 +76,7 @@ class DQN:
                                                            self._policy_step_spec,
                                                            self._time_step_spec)
         self.n_envs = 1
-        self.num_timesteps = tf.Variable(0)
+        self.num_timesteps = 0
 
         self.seed = seed
         self.learning_rate = learning_rate
@@ -133,14 +133,14 @@ class DQN:
             update_learning_rate(optimizer, self.lr_schedule(self._current_progress_remaining))
 
     def _setup_learn(
-        self,
-        total_timesteps: int,
-        eval_env: TFPyEnvironment,
-        eval_freq: int = 10000,
-        n_eval_episodes: int = 5,
-        log_path: Optional[str] = None,
-        reset_num_timesteps: bool = True,
-        tb_log_name: str = "run",
+            self,
+            total_timesteps: int,
+            eval_env: TFPyEnvironment,
+            eval_freq: int = 10000,
+            n_eval_episodes: int = 5,
+            log_path: Optional[str] = None,
+            reset_num_timesteps: bool = True,
+            tb_log_name: str = "run",
     ) -> int:
         """
         Initialize different variables needed for training.
@@ -157,7 +157,7 @@ class DQN:
         self.start_time = time.time()
 
         if reset_num_timesteps:
-            self.num_timesteps.assign(0)
+            self.num_timesteps = 0
             self._episode_num.assign(0)
         else:
             # Make sure training timesteps are ahead of the internal counter
@@ -167,7 +167,7 @@ class DQN:
         # Avoid resetting the environment when calling ``.learn()`` consecutive times
         if reset_num_timesteps or self._last_obs is None:
             self._last_obs = self.env.reset()  # TODO reset like this valid for TFEnvironment?
-            self._last_dones = np.zeros((self.env.num_envs,), dtype=bool)
+            self._last_dones = np.zeros((1,), dtype=bool)
 
         if eval_env is not None and self.seed is not None:
             eval_env.seed(self.seed)
@@ -269,11 +269,11 @@ class DQN:
         logger.record("train/loss", np.mean(losses))
 
     def predict(
-        self,
-        observation: np.ndarray,
-        state: Optional[np.ndarray] = None,
-        mask: Optional[np.ndarray] = None,
-        deterministic: bool = False,
+            self,
+            observation: np.ndarray,
+            state: Optional[np.ndarray] = None,
+            mask: Optional[np.ndarray] = None,
+            deterministic: bool = False,
     ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """
         Overrides the base_class predict function to include epsilon-greedy exploration.
@@ -293,36 +293,42 @@ class DQN:
         return action, state
 
     def learn(
-        self,
-        total_timesteps: int,
-        log_interval: int = 4,
-        eval_env: Optional[TFPyEnvironment] = None,
-        eval_freq: int = -1,
-        n_eval_episodes: int = 5,
-        tb_log_name: str = "DQN",
-        eval_log_path: Optional[str] = None,
-        reset_num_timesteps: bool = True,
+            self,
+            total_timesteps: int,
+            log_interval: int = 4,
+            eval_env: Optional[TFPyEnvironment] = None,
+            eval_freq: int = -1,
+            n_eval_episodes: int = 5,
+            tb_log_name: str = "DQN",
+            eval_log_path: Optional[str] = None,
+            reset_num_timesteps: bool = True,
     ):
 
         total_timesteps = self._setup_learn(
             total_timesteps, eval_env, eval_freq, n_eval_episodes, eval_log_path, reset_num_timesteps, tb_log_name
         )
 
-        while self.num_timesteps < total_timesteps:
-            rollout = self.collect_rollouts(
-                self.env,
-                train_freq=self.train_freq,
-                learning_starts=self.learning_starts,
-                replay_buffer=self.replay_buffer,
-                log_interval=log_interval,
-            )
+        # prepare pipeline
+        dataset = self.replay_buffer.as_dataset(
+            num_parallel_calls=3, sample_batch_size=self.batch_size, num_steps=2
+        ).prefetch(3)
 
-            if rollout.continue_training is False:
-                break
+        iterator = iter(dataset)
+
+        while self.num_timesteps < total_timesteps:
+            self.collect_data()
 
             if self.num_timesteps > 0 and self.num_timesteps > self.learning_starts:
                 # If no `gradient_steps` is specified,
                 # do as many gradients steps as steps performed during the rollout
-                gradient_steps = self.gradient_steps if self.gradient_steps > 0 else rollout.episode_timesteps
+                gradient_steps = self.gradient_steps if self.gradient_steps > 0 else 1
                 self.train(batch_size=self.batch_size, gradient_steps=gradient_steps)
         return self
+
+    def collect_data(self):
+        time_step = self.env.current_time_step()
+        action_step = self.q_net.predict(time_step)
+        next_time_step = self.env.step(action_step.action)
+        traj = trajectory.from_transition(time_step, action_step, next_time_step)
+
+        self.replay_buffer.add_batch(traj)

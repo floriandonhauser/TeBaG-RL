@@ -128,7 +128,7 @@ class DQNPolicy(BasePolicy):
 
         self.q_net = self.make_q_net()
         self.q_net_target = self.make_q_net()
-        common.soft_variables_update(self.q_net.trainable_variables, self.q_net_target.trainable_variables, self.tau)
+        common.soft_variables_update(self.q_net.trainable_variables, self.q_net_target.trainable_variables,1.0)
         # Setup optimizer with initial learning rate
         self.optimizer = self.optimizer_class(learning_rate=lr_schedule(1), **self.optimizer_kwargs)
 
