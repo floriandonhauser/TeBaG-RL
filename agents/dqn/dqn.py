@@ -1,3 +1,5 @@
+""""""
+
 import time
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
@@ -11,6 +13,7 @@ from tf_agents.trajectories import policy_step, trajectory
 
 from agents.common.util import Schedule, get_linear_fn, get_schedule_fn, set_random_seed, update_learning_rate
 from agents.dqn.policies import DQNPolicy
+from resources import DEFAULT_PATHS
 
 
 class DQN:
@@ -167,48 +170,52 @@ class DQN:
         if eval_env is not None and self.seed is not None:
             eval_env.seed(self.seed)
 
-        # Configure logger's outputs
-        # utils.configure_logger(self.verbose, self.tensorboard_log, tb_log_name, reset_num_timesteps)
+        # Configure TensorBoard logging outputs
+        self.summary_writer = tf.summary.create_file_writer(DEFAULT_PATHS["path_logdir"])
 
         return total_timesteps
 
     def train(self, iterator, gradient_steps: int, batch_size: int = 100) -> None:
-        # Update learning rate according to schedule
-        self._update_learning_rate(self.policy.optimizer)
 
-        losses = []
-        for _ in range(gradient_steps):
-            experience, unused_info = next(iterator)
+        with self.summary_writer.as_default():
+            # Update learning rate according to schedule
+            self._update_learning_rate(self.policy.optimizer)
 
-            # Compute the next Q-values using the target network
-            next_q_values, state = self.q_net_target.call(experience.observation)
-            # Follow greedy policy: use the one with the highest value
-            next_q_values, _ = next_q_values.max(dim=1)
-            # Avoid potential broadcast issue
-            next_q_values = next_q_values.reshape(-1, 1)
-            # 1-step TD target
-            target_q_values = experience.reward + (1 - experience.dones) * self.gamma * next_q_values
+            losses = []
+            for _ in range(gradient_steps):
+                experience, unused_info = next(iterator)
 
-            # Get current Q-values estimates
-            with tf.GradientTape() as tape:
-                current_q_values = self.q_net(experience.observations)
+                # Compute the next Q-values using the target network
+                next_q_values, state = self.q_net_target.call(experience.observation)
+                # Follow greedy policy: use the one with the highest value
+                next_q_values, _ = next_q_values.max(dim=1)
+                # Avoid potential broadcast issue
+                next_q_values = next_q_values.reshape(-1, 1)
+                # 1-step TD target
+                target_q_values = experience.reward + (1 - experience.dones) * self.gamma * next_q_values
 
-                # Retrieve the q-values for the actions from the replay buffer
-                current_q_values = tf.gather(current_q_values, dim=1, index=experience.actions.long())
+                # Get current Q-values estimates
+                with tf.GradientTape() as tape:
+                    current_q_values = self.q_net(experience.observations)
 
-                loss = tf.keras.losses.huber(target_q_values, current_q_values)
+                    # Retrieve the q-values for the actions from the replay buffer
+                    current_q_values = tf.gather(current_q_values, dim=1, index=experience.actions.long())
 
-            train_params = self.q_net.trainable_weights
+                    loss = tf.keras.losses.huber(target_q_values, current_q_values)
+                    # TODO: Check if self.num_timesteps is right here
+                    tf.summary.scalar('loss', loss, step=self.num_timesteps)
 
-            grad = tape.gradient(loss, train_params)
-            # TODO clip gradients
+                train_params = self.q_net.trainable_weights
 
-            self.policy.optimizer.apply_gradients(zip(grad, train_params))
+                grad = tape.gradient(loss, train_params)
+                # TODO clip gradients
 
-            losses.append(loss.item())
+                self.policy.optimizer.apply_gradients(zip(grad, train_params))
 
-        # Increase update counter
-        self._n_updates += gradient_steps
+                losses.append(loss.item())
+
+            # Increase update counter
+            self._n_updates += gradient_steps
 
     def predict(
             self,
