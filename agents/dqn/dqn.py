@@ -188,7 +188,10 @@ class DQN:
                 # Compute the next Q-values using the target network
                 next_q_values, state = self.q_net_target.call(experience.observation)
                 # Follow greedy policy: use the one with the highest value
-                next_q_values, _ = next_q_values.max(dim=1)
+
+                #next_q_values, _ = next_q_values.max(dim=1)
+                next_q_values = tf.reduce_max(next_q_values, axis=1)
+
                 # Avoid potential broadcast issue
                 next_q_values = next_q_values.reshape(-1, 1)
                 # 1-step TD target
