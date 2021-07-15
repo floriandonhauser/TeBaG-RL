@@ -164,7 +164,7 @@ class DQN:
 
         # Avoid resetting the environment when calling ``.learn()`` consecutive times
         if reset_num_timesteps or self._last_obs is None:
-            self._last_obs = self.env.reset()  # TODO reset like this valid for TFEnvironment?
+            self._last_obs = self.env.reset()
             self._last_dones = np.zeros((1,), dtype=bool)
 
         if eval_env is not None and self.seed is not None:
