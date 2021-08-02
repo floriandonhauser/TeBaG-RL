@@ -6,7 +6,7 @@ from agents import HubPolicy
 
 
 def create_agent(env, num_verb, num_obj, learning_rate):
-    train_step_counter = tf.Variable(0)
+    train_step_counter = tf.Variable(0, dtype=tf.int64)
 
     q_net, optimizer = create_policy(env, num_verb, num_obj, learning_rate)
 
