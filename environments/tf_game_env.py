@@ -65,7 +65,10 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             "flatten_actspec": flatten_actspec,
             "expand_vocab": expand_vocab,
         }
-        self._reward_dict = reward_dict
+        if reward_dict is not None:
+            self._reward_dict = reward_dict
+        else:
+            self._reward_dict = REWARD_DICT
         self._hash_list_length = hash_list_length
         self._obs_stype = obs_stype
 
@@ -235,8 +238,10 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
 
         # Greatly reward/punish win/lose of game
         if new_state["won"]:
+            print("GAME WON")
             reward += self._reward_dict["win_lose_value"]
         elif new_state["lost"]:
+            print("GAME LOST")
             reward -= self._reward_dict["win_lose_value"]
 
         # Check if verb in command was in admissible commands

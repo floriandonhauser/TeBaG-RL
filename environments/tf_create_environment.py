@@ -14,6 +14,7 @@ def create_environments(
     path_verbs: str = DEFAULT_PATHS["path_verbs"],
     path_objs: str = DEFAULT_PATHS["path_objs"],
     path_badact: str = DEFAULT_PATHS["path_badact"],
+    reward_dict: dict = None,
 ):
     """Environment creation for test and evaluation."""
 
@@ -25,6 +26,7 @@ def create_environments(
         debug=debug,
         flatten_actspec=flatten_actspec,
         expand_vocab=expand_vocab,
+        reward_dict=reward_dict,
     )
     eval_py_env = TWGameEnv(
         game_path=env_name,
@@ -33,6 +35,7 @@ def create_environments(
         path_badact=path_badact,
         debug=debug,
         flatten_actspec=flatten_actspec,
+        reward_dict=reward_dict,
     )
 
     if debug:

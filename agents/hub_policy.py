@@ -2,7 +2,8 @@ import tensorflow as tf
 import tensorflow_hub as hub
 from tf_agents.networks import network
 
-embedding = "https://tfhub.dev/google/nnlm-en-dim50/2"
+# embedding = "https://tfhub.dev/google/nnlm-en-dim50/2"
+embedding = "https://tfhub.dev/google/nnlm-en-dim128-with-normalization/2"
 
 
 class HubPolicy(network.Network):
@@ -17,9 +18,12 @@ class HubPolicy(network.Network):
         self.num_obj = num_obj
 
         self.hub_layer = hub.KerasLayer(
-            embedding, input_shape=[], dtype=tf.string, trainable=True
+            embedding, input_shape=[], dtype=tf.string, trainable=False
         )
-        self.gru = tf.keras.layers.GRU(4, return_state=True)
+        # self.gru = tf.keras.layers.GRU(4, return_state=True)
+
+        self.fc1 = tf.keras.layers.Dense(128, activation="relu")
+        self.fc2 = tf.keras.layers.Dense(64, activation="relu")
 
         self.verb_layer = tf.keras.layers.Dense(num_verb, activation=None)
         self.obj_layer = tf.keras.layers.Dense(num_obj, activation=None)
@@ -40,14 +44,16 @@ class HubPolicy(network.Network):
             network_state = None
 
         flattened_observation = tf.reshape(observation, (-1))
-        embedded_observations = self.hub_layer(flattened_observation, training=training)
+        # embedded_observations = self.hub_layer(flattened_observation, training=training)
+        embedded_observations = self.hub_layer(flattened_observation, training=False)
+
         embedded_observations = tf.reshape(
-            embedded_observations, (observation.shape[0], observation.shape[1], 50)
+            embedded_observations, (observation.shape[0], observation.shape[1], 128)
         )
-        gru_output, network_state = self.gru(
-            embedded_observations, initial_state=network_state
-        )
-        gru_output = tf.expand_dims(gru_output, axis=1)
+
+        out = self.fc1(embedded_observations, training=training)
+        out = self.fc2(out, training=training)
+        gru_output = out
         verb_q_value = self.verb_layer(gru_output, training=training)
         obj_q_value = self.obj_layer(gru_output, training=training)
         q_value_multiplied = tf.matmul(verb_q_value, obj_q_value, transpose_a=True)
