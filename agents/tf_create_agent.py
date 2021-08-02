@@ -2,7 +2,6 @@
 
 import tensorflow as tf
 from tf_agents.agents.dqn import dqn_agent
-from tf_agents.utils import common
 from agents import HubPolicy
 
 
@@ -16,8 +15,6 @@ def create_agent(env, num_verb, num_obj, learning_rate):
         env.action_spec(),
         q_network=q_net,
         optimizer=optimizer,
-        # TODO which loss function? default is element_wise_huber_loss
-        # td_errors_loss_fn=common.element_wise_squared_loss,
         train_step_counter=train_step_counter,
     )
     return agent
