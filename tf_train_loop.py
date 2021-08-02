@@ -8,6 +8,7 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
+import tensorflow as tf
 from tf_agents.policies import random_tf_policy
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.trajectories import trajectory
@@ -23,6 +24,7 @@ DEFAULT_HP = {
     "replay_buffer_max_length": 100000,
     "batch_size": 128,
     "num_eval_episodes": 1,
+    "num_eval_games": 10,
     "game_gen_buffer": 50,
 }
 
@@ -36,11 +38,16 @@ class TWTrainer(ABC):
         reward_dict: dict = None,
         env_dir: str = None,
         debug: bool = False,
+        biased_buffer=False,
     ):
         self._hpar = hpar
         self._debug = debug
         self._reward_dict = reward_dict
         self._env_dir = env_dir
+        self._biased_buffer = biased_buffer
+        self._biased_buffer_thr = tf.constant([10.0, 0.0, -30.0], dtype=np.float32)
+        self._biased_buffer_accept_prob = tf.constant([0.66, 0.99], dtype=np.float32)
+        self._biased_buffer_train_prob = tf.constant([0.2], dtype=np.float32)
 
         self._agent = None
         self._rndm_pol = None
@@ -48,6 +55,8 @@ class TWTrainer(ABC):
         self._test_env = None
         self._train_env_list = []
         self._replay_buffer = None
+
+        self._setup_training()
 
     def _setup_training(self):
         """"""
@@ -117,19 +126,28 @@ class TWTrainer(ABC):
             )
             self._train_env_list.append(train_env_tmp)
 
+    def change_env_dir(self, dir_name: str):
+        """"""
+        self._env_dir = dir_name
+
     def train(
         self,
         num_iterations: int = 5000,
+        train_interval: int = 10,
         log_interval: int = 250,
         eval_interval: int = 50,
         game_gen_interval: int = 100,
+        continue_training=False,
+        rndm_fill_replay=True,
         plot_avg_ret: bool = True,
     ):
         """"""
 
-        self._setup_training()
+        if not continue_training:
+            self._setup_training()
 
-        self._fill_replay_buffer()
+        if rndm_fill_replay:
+            self._fill_replay_buffer()
 
         # prepare pipeline
         dataset = self._replay_buffer.as_dataset(
@@ -150,7 +168,10 @@ class TWTrainer(ABC):
             self._refill_env_list()
 
         # learning
-        for _ in range(num_iterations):
+        if self._biased_buffer:
+            num_iterations = train_interval * num_iterations
+
+        for trials in range(num_iterations):
 
             rndm_env = random.choice(self._train_env_list)
             self._collect_data(
@@ -161,13 +182,20 @@ class TWTrainer(ABC):
                 self._hpar["batch_size"],
             )
 
+            # Update agent occasionally, as data generation too slow with biased buffer
+            if self._biased_buffer:
+                if not trials % train_interval == 0:
+                    continue
+
             experience, unused_info = next(iterator)
             train_loss = self._agent.train(experience).loss
 
             step = self._agent.train_step_counter.numpy()
 
             if step % log_interval == 0:
-                print(f"step = {step}: loss = {train_loss}")
+                print(
+                    f"step = {step}: loss = {train_loss:0.2e}, Buff-len = {self._replay_buffer.num_frames()}"
+                )
 
             if step % eval_interval == 0:
                 if self._env_dir is None:
@@ -179,19 +207,22 @@ class TWTrainer(ABC):
                     )
                 else:
                     test_env_dir = "test" + self._env_dir[5:]
-
-                    game_path = self._get_rndm_game(test_env_dir)
-                    _, eval_env_tmp, _, _ = create_environments(
-                        debug=self._debug,
-                        reward_dict=self._reward_dict,
-                        env_name=game_path,
-                    )
-                    avg_return = self._compute_avg_return(
-                        eval_env_tmp,
-                        self._agent.policy,
-                        self._hpar["num_eval_episodes"],
-                        self._hpar["batch_size"],
-                    )
+                    eval_res = 0.0
+                    for n_eval in range(self._hpar["num_eval_games"]):
+                        game_path = self._get_rndm_game(test_env_dir)
+                        _, eval_env_tmp, _, _ = create_environments(
+                            debug=self._debug,
+                            reward_dict=self._reward_dict,
+                            env_name=game_path,
+                        )
+                        avg_return = self._compute_avg_return(
+                            eval_env_tmp,
+                            self._agent.policy,
+                            self._hpar["num_eval_episodes"],
+                            self._hpar["batch_size"],
+                        )
+                        eval_res += avg_return
+                    avg_return = eval_res / self._hpar["num_eval_games"]
 
                 print(f"step = {step}: Average Return = {avg_return}")
                 iterations.append(step)
@@ -210,7 +241,7 @@ class TWTrainer(ABC):
             plt.plot(iterations, returns)
             plt.ylabel("Average Return")
             plt.xlabel("Iterations")
-            plt.ylim(top=250)
+            plt.ylim(top=250, bottom=-130)
             plt.savefig("training_curve.png")
 
         return returns
@@ -243,8 +274,7 @@ class TWTrainer(ABC):
 
         return os.path.join(res_path, path_dir, choice)
 
-    @staticmethod
-    def _collect_step(environment, policy, buffer, batch_size):
+    def _collect_step(self, environment, policy, buffer, batch_size):
         time_step = environment.current_time_step()
         action_step = policy.action(
             time_step, policy.get_initial_state(batch_size=batch_size)
@@ -252,7 +282,29 @@ class TWTrainer(ABC):
         next_time_step = environment.step(action_step.action)
         traj = trajectory.from_transition(time_step, action_step, next_time_step)
 
-        buffer.add_batch(traj)
+        if self._biased_buffer:
+            # Accept high reward immediately
+            if tf.math.greater(next_time_step.reward, self._biased_buffer_thr[0]):
+                buffer.add_batch(traj)
+            # Accept high negative reward immediately
+            elif tf.math.greater(self._biased_buffer_thr[2], next_time_step.reward):
+                buffer.add_batch(traj)
+            else:
+                # Throw dice, if accept bad result by chance.
+                dice_res = tf.random.uniform(
+                    (1,), minval=0.0, maxval=1.0, dtype=tf.float32
+                )
+                # Accept reward > 0 with high probability
+                if tf.math.greater(next_time_step.reward, self._biased_buffer_thr[1]):
+                    if dice_res > self._biased_buffer_accept_prob[0]:
+                        buffer.add_batch(traj)
+                # Accept reward < 0 with low probability
+                else:
+                    if dice_res > self._biased_buffer_accept_prob[1]:
+                        buffer.add_batch(traj)
+
+        else:
+            buffer.add_batch(traj)
 
     def _collect_data(self, env, policy, buffer, steps, batch_size):
         for _ in range(steps):
