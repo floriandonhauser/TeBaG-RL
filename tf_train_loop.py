@@ -15,7 +15,7 @@ from tf_agents.trajectories import trajectory
 
 from agents import create_agent
 from environments import create_environments
-from resources import res_path
+from resources import res_path, DEFAULT_PATHS
 
 DEFAULT_HP = {
     "learning_rate": 1e-3,
@@ -55,6 +55,8 @@ class TWTrainer(ABC):
         self._test_env = None
         self._train_env_list = []
         self._replay_buffer = None
+        self.summary_writer = tf.summary.create_file_writer(DEFAULT_PATHS["path_logdir"])
+        self.summary_writer.set_as_default()
 
         self._setup_training()
 
@@ -192,6 +194,9 @@ class TWTrainer(ABC):
 
             step = self._agent.train_step_counter.numpy()
 
+            tf.summary.scalar('loss', train_loss, step=step)
+            tf.summary.scalar('BufferSize', self._replay_buffer.num_frames(), step=step)
+
             if step % log_interval == 0:
                 print(
                     f"step = {step}: loss = {train_loss:0.2e}, Buff-len = {self._replay_buffer.num_frames()}"
@@ -224,6 +229,7 @@ class TWTrainer(ABC):
                         eval_res += avg_return
                     avg_return = eval_res / self._hpar["num_eval_games"]
 
+                tf.summary.scalar('eval_score', avg_return, step=step)
                 print(f"step = {step}: Average Return = {avg_return}")
                 iterations.append(step)
                 returns.append(avg_return)
