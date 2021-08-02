@@ -18,12 +18,9 @@ class HubPolicy(network.Network):
         self.num_obj = num_obj
 
         self.hub_layer = hub.KerasLayer(
-            embedding,
-            input_shape=[],
-            dtype=tf.string,
+            embedding, input_shape=[], dtype=tf.string,
             # embedding, input_shape = [], dtype = tf.string, trainable = False
         )
-        # self.gru = tf.keras.layers.GRU(4, return_state=True)
 
         self.fc1 = tf.keras.layers.Dense(128, activation="relu")
         self.fc2 = tf.keras.layers.Dense(64, activation="relu")
@@ -52,7 +49,6 @@ class HubPolicy(network.Network):
 
         flattened_observation = tf.reshape(observation, (-1))
         embedded_observations = self.hub_layer(flattened_observation, training=training)
-        # embedded_observations = self.hub_layer(flattened_observation, training=False)
 
         embedded_observations = tf.reshape(
             embedded_observations, (observation.shape[0], observation.shape[1], 128)
