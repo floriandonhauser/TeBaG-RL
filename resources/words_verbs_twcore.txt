@@ -1,19 +1,7 @@
 go
 take
 use
-move
-light
 read
-push
 open
-search
 put
-close
-pull
-enter
-look
-turn
-turn on
 unlock
-drop
-attack
