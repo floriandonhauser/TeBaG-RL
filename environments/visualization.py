@@ -5,4 +5,6 @@ def get_fit_callback():
     """
     Returns a callback that can be used during fit to visualize the loss
     """
-    return tf.keras.callbacks.TensorBoard(log_dir="tensorboard_visualizations", histogram_freq=1)
+    return tf.keras.callbacks.TensorBoard(
+        log_dir="tensorboard_visualizations", histogram_freq=1
+    )
