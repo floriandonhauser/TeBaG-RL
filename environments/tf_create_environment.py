@@ -15,6 +15,7 @@ def create_environments(
     path_objs: str = DEFAULT_PATHS["path_objs"],
     path_badact: str = DEFAULT_PATHS["path_badact"],
     reward_dict: dict = None,
+    onlytrain: bool = False,
 ):
     """Environment creation for test and evaluation."""
 
@@ -28,21 +29,25 @@ def create_environments(
         expand_vocab=expand_vocab,
         reward_dict=reward_dict,
     )
-    eval_py_env = TWGameEnv(
-        game_path=env_name,
-        path_verb=path_verbs,
-        path_obj=path_objs,
-        path_badact=path_badact,
-        debug=debug,
-        flatten_actspec=flatten_actspec,
-        reward_dict=reward_dict,
-    )
+    if not onlytrain:
+        eval_py_env = TWGameEnv(
+            game_path=env_name,
+            path_verb=path_verbs,
+            path_obj=path_objs,
+            path_badact=path_badact,
+            debug=debug,
+            flatten_actspec=flatten_actspec,
+            reward_dict=reward_dict,
+        )
 
     if debug:
         utils.validate_py_environment(train_py_env, episodes=no_episodes)
 
     train_env = tf_py_environment.TFPyEnvironment(train_py_env)
-    eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
+    if not onlytrain:
+        eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
+    else:
+        eval_env = None
 
     return train_env, eval_env, train_py_env.num_verb, train_py_env.num_obj
 
