@@ -238,10 +238,8 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
 
         # Greatly reward/punish win/lose of game
         if new_state["won"]:
-            print("GAME WON")
             reward += self._reward_dict["win_lose_value"]
         elif new_state["lost"]:
-            print("GAME LOST")
             reward -= self._reward_dict["win_lose_value"]
 
         # Check if verb in command was in admissible commands
