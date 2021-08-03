@@ -39,8 +39,10 @@ class TWTrainer(ABC):
         env_dir: str = None,
         debug: bool = False,
         biased_buffer=False,
+        agent_label: str = None,
     ):
         self._hpar = hpar
+        self._agent_label = agent_label
         self._debug = debug
         self._reward_dict = reward_dict
         self._env_dir = env_dir
@@ -55,7 +57,9 @@ class TWTrainer(ABC):
         self._test_env = None
         self._train_env_list = []
         self._replay_buffer = None
-        self.summary_writer = tf.summary.create_file_writer(DEFAULT_PATHS["path_logdir"])
+        self.summary_writer = tf.summary.create_file_writer(
+            DEFAULT_PATHS["path_logdir"]
+        )
         self.summary_writer.set_as_default()
 
         self._setup_training()
@@ -69,7 +73,11 @@ class TWTrainer(ABC):
         self._train_env_list.append(self._train_env)
 
         self._agent = create_agent(
-            self._train_env, num_verb, num_obj, self._hpar["learning_rate"]
+            self._train_env,
+            num_verb,
+            num_obj,
+            self._hpar["learning_rate"],
+            self._agent_label,
         )
         self._agent.initialize()
 
@@ -194,8 +202,8 @@ class TWTrainer(ABC):
 
             step = self._agent.train_step_counter.numpy()
 
-            tf.summary.scalar('loss', train_loss, step=step)
-            tf.summary.scalar('BufferSize', self._replay_buffer.num_frames(), step=step)
+            tf.summary.scalar("loss", train_loss, step=step)
+            tf.summary.scalar("BufferSize", self._replay_buffer.num_frames(), step=step)
 
             if step % log_interval == 0:
                 print(
@@ -229,7 +237,7 @@ class TWTrainer(ABC):
                         eval_res += avg_return
                     avg_return = eval_res / self._hpar["num_eval_games"]
 
-                tf.summary.scalar('eval_score', avg_return, step=step)
+                tf.summary.scalar("eval_score", avg_return, step=step)
                 print(f"step = {step}: Average Return = {avg_return}")
                 iterations.append(step)
                 returns.append(avg_return)
@@ -318,8 +326,42 @@ class TWTrainer(ABC):
 
 
 def main():
-    trainer = TWTrainer()
-    trainer.train()
+    HP = {
+        "learning_rate": 1e-3,
+        "initial_collect_steps": 2000,
+        "collect_steps_per_iteration": 1,
+        "replay_buffer_max_length": 100000,
+        # large values lead to OOM with bert policy
+        "batch_size": 32,
+        "num_eval_episodes": 1,
+        "game_gen_buffer": 25,
+        "num_eval_games": 10,
+    }
+    REWARDS = {
+        "win_lose_value": 100,
+        "max_loop_pun": 0,
+        "change_reward": 1,
+        "useless_act_pun": 1,
+        "verb_in_adm": 1,
+    }
+
+    trainer = TWTrainer(
+        env_dir="train_games_lvl2",
+        reward_dict=REWARDS,
+        hpar=HP,
+        debug=False,
+        biased_buffer=True,
+        # embedding into fc is default policy
+        # agent_label="FCPolicy",
+        agent_label="BertPolicy",
+    )
+    trainer.train(
+        num_iterations=5000,
+        log_interval=250,
+        eval_interval=250,
+        game_gen_interval=500,
+        plot_avg_ret=True,
+    )
 
 
 if __name__ == "__main__":
