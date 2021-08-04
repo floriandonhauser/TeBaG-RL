@@ -30,7 +30,29 @@ DEFAULT_HP = {
 
 
 class TWTrainer(ABC):
-    """"""
+    """Trainer for TextWorld RL agent
+
+    Parameters:
+    -----------
+    hpar: dict
+        Dictionary of hyper parameters.
+    reward_dict: dict
+        Dictionary of reward values to be used for reward calculation
+    env_dir: str
+        Path to game directory to pull random game files from. If set to None, debug
+        game is used instead.
+    debug: bool
+        Enables debug mode with testing and outputs
+    biased_buffer: bool
+        Enables biased replay buffer. For given threshold and probabilities, only
+        desired trajectories are added to the replay buffer and other cases with a
+        certain probability. Agent will only be trained every 10th iteration to avoid
+        overfitting on too small samples, however, num_iterations will be adjusted
+        automatically in train() method.
+    agent_label: str
+        Tag to chose different q networks for the policy.
+        Implemented options ["BertPolicy", "FCPolicy"].
+    """
 
     def __init__(
         self,
@@ -47,9 +69,10 @@ class TWTrainer(ABC):
         self._reward_dict = reward_dict
         self._env_dir = env_dir
         self._biased_buffer = biased_buffer
+        # Reward values to be distinguished by biased buffer
         self._biased_buffer_thr = tf.constant([10.0, 0.0, -30.0], dtype=np.float32)
+        # Probabilities to be not counted for the last two cases above for biased buffer
         self._biased_buffer_accept_prob = tf.constant([0.66, 0.99], dtype=np.float32)
-        self._biased_buffer_train_prob = tf.constant([0.2], dtype=np.float32)
 
         self._agent = None
         self._rndm_pol = None
@@ -65,7 +88,7 @@ class TWTrainer(ABC):
         self._setup_training()
 
     def _setup_training(self):
-        """"""
+        """Instantiating all relevant entities for training"""
 
         self._train_env, self._test_env, num_verb, num_obj = create_environments(
             debug=self._debug, reward_dict=self._reward_dict
@@ -87,13 +110,13 @@ class TWTrainer(ABC):
 
         self._replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
             data_spec=self._agent.collect_data_spec,
-            # FIXME? Does train env has batch size? rnn not matching state fix?
+            # FIXME? Does train env has batch size?
             batch_size=self._train_env.batch_size,
             max_length=self._hpar["replay_buffer_max_length"],
         )
 
     def _fill_replay_buffer(self):
-        """"""
+        """Fill replay buffer with random agent."""
 
         if self._env_dir is None:
             self._collect_data(
@@ -123,7 +146,7 @@ class TWTrainer(ABC):
                 steps += 100
 
     def _refill_env_list(self):
-        """"""
+        """Fill _train_env_list with a number of generated environments to train on."""
 
         self._train_env_list = []
         for i in range(self._hpar["game_gen_buffer"]):
@@ -137,7 +160,14 @@ class TWTrainer(ABC):
             self._train_env_list.append(train_env_tmp)
 
     def change_env_dir(self, dir_name: str):
-        """"""
+        """Change directory to get (random) game files from.
+
+        Parameters:
+        -----------
+        dir_name: str
+            Name of game directory. If set to None, defaulting to single debug game.
+        """
+
         self._env_dir = dir_name
 
     def train(
@@ -151,7 +181,27 @@ class TWTrainer(ABC):
         rndm_fill_replay=True,
         plot_avg_ret: bool = True,
     ):
-        """"""
+        """Central training loop.
+
+        Parameters:
+        -----------
+        num_iterations: int
+            Number of training steps to train the agent.
+        train_interval: int
+            Interval to train the agent in case of biased replay buffer.
+        log_interval: int
+            Interval to print current loss and replay buffer size.
+        eval_interval: int
+            Interval to calculate average reward of current agent.
+        game_gen_interval: int
+            Interval to refill list of created game environments to train agent with.
+        continue_training: bool
+            Continues training instead of resetting replay buffer and agent.
+        rndm_fill_replay: bool
+            Toggle filling replay agent with random agent before training.
+        plot_avg_ret: bool
+            Plot eval scores at the end of training loop.
+        """
 
         if not continue_training:
             self._setup_training()

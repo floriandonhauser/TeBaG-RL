@@ -4,11 +4,17 @@ from tf_agents.networks import network
 # Bert needs this (I think) TODO: Check?
 import tensorflow_text as text
 
-# embedding = "https://tfhub.dev/google/nnlm-en-dim50/2"
+
 embedding = "https://tfhub.dev/google/nnlm-en-dim128-with-normalization/2"
+tfhub_handle_encoder = (
+    "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-2_H-128_A-2/1"
+)
+tfhub_handle_preprocess = "https://tfhub.dev/tensorflow/bert_en_uncased_preprocess/3"
 
 
 class HubPolicyFC(network.Network):
+    """Policy for DQN agent utilizing pre-trained NNLM embedding into FC layers."""
+
     def __init__(
         self, input_tensor_spec, action_spec, num_verb, num_obj, name="ActorNetwork"
     ):
@@ -74,13 +80,9 @@ class HubPolicyFC(network.Network):
         return q_values, ()
 
 
-tfhub_handle_encoder = (
-    "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-2_H-128_A-2/1"
-)
-tfhub_handle_preprocess = "https://tfhub.dev/tensorflow/bert_en_uncased_preprocess/3"
-
-
 class HubPolicyBert(network.Network):
+    """Policy for DQN agent utilizing pre-trained smallBert into FC layers. """
+
     def __init__(
         self, input_tensor_spec, action_spec, num_verb, num_obj, name="ActorNetwork"
     ):
@@ -110,7 +112,7 @@ class HubPolicyBert(network.Network):
         """A wrapper around `Network.call`.
 
         Args:
-            inputs: The input to `self.call`, matching `self.input_tensor_spec`
+            observation: The input to `self.call`, matching `self.input_tensor_spec`
             network_state: A state to pass to the network used by the RNN layer
             training: Optional argument to set to training mode
         Returns:

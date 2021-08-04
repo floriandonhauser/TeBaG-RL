@@ -17,7 +17,31 @@ def create_environments(
     reward_dict: dict = None,
     onlytrain: bool = False,
 ):
-    """Environment creation for test and evaluation."""
+    """Central environment creation method.
+
+    Parameters:
+    -----------
+    debug: bool
+        Enables debug outputs and tests environment with tf_agent util method.
+    flatten_actspec: bool
+        Flatten action spec of environment by multiplying all verbs with all objects.
+        Action spec will be 1D instead of 2D.
+    expand_vocab: bool
+        Activate expand_vocab mode. If true, environment will search for entities in
+        TextWorld returns to be on object vocabulary. Missing entries will be appended
+        to object vocab file. As this changes dimension of the action spec, agents would
+        need to be retrained.
+    no_episodes: int
+        Number of episodes to test environment in debug mode.
+    reward_dict: dict
+        Dictionary with values to reward/punish agent for certain state changes.
+    onlytrain: bool
+        Toggle creation of train and eval environment at the same time (optimization.)
+    env_name, path_verbs, path_objs, path_badact: str
+        Paths to game file, verb vocab file, object vocab file and bad action
+        observation returns.
+
+    """
 
     train_py_env = TWGameEnv(
         game_path=env_name,
