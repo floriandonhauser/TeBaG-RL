@@ -41,6 +41,20 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         for 1D action space.
     expand_vocab: False
         Turn on automatic object vocabulary expansion.
+    reward_dict: dict
+        Dictionary with values to reward/punish agent for certain state changes.
+        REWARD_DICT = {
+            "win_lose_value": +- Reward for winning/losing game
+            "max_loop_pun": - Reward for looping over same states
+            "change_reward": + Reward for changing surroundings or inventory
+            "useless_act_pun": - Reward for using non-recognizable action
+            "verb_in_adm": + Reward for using a verb that is at least admissible
+        }
+    hash_list_length: int
+        Length of last states to be hashed for change-of-state comparisons and reward
+        calculations.
+    obs_stype: str
+        Type of observation string to be cast. Needs to be numpy type.
     """
 
     def __init__(
@@ -65,7 +79,10 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             "flatten_actspec": flatten_actspec,
             "expand_vocab": expand_vocab,
         }
-        self._reward_dict = reward_dict
+        if reward_dict is not None:
+            self._reward_dict = reward_dict
+        else:
+            self._reward_dict = REWARD_DICT
         self._hash_list_length = hash_list_length
         self._obs_stype = obs_stype
 
@@ -265,6 +282,8 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
 
     @staticmethod
     def _append_word_to_file(word: str, file: str):
+        """Helper method to append word to a file for vocab generation"""
+
         with open(file, "a+") as file_object:
             file_object.seek(0)
             data = file_object.read(100)

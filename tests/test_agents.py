@@ -6,14 +6,14 @@ import tf_agents
 from tf_agents.environments import random_py_environment, tf_py_environment
 from tf_agents.specs import array_spec
 
-from agents import HubPolicy
+from agents import HubPolicyFC
 
 
 def create_policy(
     env,
 ) -> Tuple[tf_agents.networks.Network, tf_agents.typing.types.Optimizer]:
     learning_rate = 1e-3
-    q_net = HubPolicy(env.observation_spec(), env.action_spec())
+    q_net = HubPolicyFC(env.observation_spec(), env.action_spec())
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
     return q_net, optimizer
