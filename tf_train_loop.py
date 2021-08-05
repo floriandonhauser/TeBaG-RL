@@ -12,6 +12,7 @@ import tensorflow as tf
 from tf_agents.policies import random_tf_policy
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.trajectories import trajectory
+from tf_agents.utils import common
 
 from agents import create_agent
 from environments import create_environments
@@ -52,16 +53,22 @@ class TWTrainer(ABC):
     agent_label: str
         Tag to chose different q networks for the policy.
         Implemented options ["BertPolicy", "FCPolicy"].
+    save_path: str
+        Path to save the agent to.
+    load_path: bool
+        If previous checkpoints from save_path should be loaded
     """
 
     def __init__(
-        self,
-        hpar: dict = DEFAULT_HP,
-        reward_dict: dict = None,
-        env_dir: str = None,
-        debug: bool = False,
-        biased_buffer=False,
-        agent_label: str = None,
+            self,
+            hpar: dict = DEFAULT_HP,
+            reward_dict: dict = None,
+            env_dir: str = None,
+            debug: bool = False,
+            biased_buffer=False,
+            agent_label: str = None,
+            save_path: str = None,
+            load_last: bool = True,
     ):
         self._hpar = hpar
         self._agent_label = agent_label
@@ -84,8 +91,17 @@ class TWTrainer(ABC):
             DEFAULT_PATHS["path_logdir"]
         )
         self.summary_writer.set_as_default()
+        self.checkpointer = None
+
+        if save_path is None or save_path == "default":
+            self.save_path = "./checkpoints"
+        else:
+            self.save_path = save_path
 
         self._setup_training()
+
+        if load_last:
+            self._load_last_checkpoint()
 
     def _setup_training(self):
         """Instantiating all relevant entities for training"""
@@ -114,6 +130,22 @@ class TWTrainer(ABC):
             batch_size=self._train_env.batch_size,
             max_length=self._hpar["replay_buffer_max_length"],
         )
+
+        self.checkpointer = common.Checkpointer(
+            ckpt_dir=self.save_path,
+            max_to_keep=1,
+            agent=self._agent,
+            policy=self._agent.policy,
+            replay_buffer=self._replay_buffer,
+            global_step=self._agent.train_step_counter
+        )
+
+    def _load_last_checkpoint(self):
+        # restores last checkpoint from save path
+        self.checkpointer.initialize_or_restore()
+        # reset step counter
+        train_step_counter = tf.Variable(0, dtype=tf.int64)
+        self._agent.train_step_counter.assign(0)
 
     def _fill_replay_buffer(self):
         """Fill replay buffer with random agent."""
@@ -171,15 +203,16 @@ class TWTrainer(ABC):
         self._env_dir = dir_name
 
     def train(
-        self,
-        num_iterations: int = 5000,
-        train_interval: int = 10,
-        log_interval: int = 250,
-        eval_interval: int = 50,
-        game_gen_interval: int = 100,
-        continue_training=False,
-        rndm_fill_replay=True,
-        plot_avg_ret: bool = True,
+            self,
+            num_iterations: int = 5000,
+            train_interval: int = 10,
+            log_interval: int = 250,
+            eval_interval: int = 50,
+            save_interval: int = 1000,
+            game_gen_interval: int = 100,
+            continue_training=False,
+            rndm_fill_replay=True,
+            plot_avg_ret: bool = True,
     ):
         """Central training loop.
 
@@ -193,6 +226,8 @@ class TWTrainer(ABC):
             Interval to print current loss and replay buffer size.
         eval_interval: int
             Interval to calculate average reward of current agent.
+        save_interval: int
+            Interval to save the current agent.
         game_gen_interval: int
             Interval to refill list of created game environments to train agent with.
         continue_training: bool
@@ -291,6 +326,9 @@ class TWTrainer(ABC):
                 print(f"step = {step}: Average Return = {avg_return}")
                 iterations.append(step)
                 returns.append(avg_return)
+
+            if step % save_interval == 0:
+                self.checkpointer.save(self._agent.train_step_counter)
 
             if step % game_gen_interval == 0:
                 if self._env_dir is not None:
