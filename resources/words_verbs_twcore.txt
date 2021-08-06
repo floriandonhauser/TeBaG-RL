@@ -1,7 +1,6 @@
 go
 take
-use
-read
+examine
 open
 put
 unlock
