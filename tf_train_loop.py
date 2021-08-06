@@ -392,7 +392,7 @@ def main():
         "max_loop_pun": 0,
         "change_reward": 1,
         "useless_act_pun": 1,
-        "verb_in_adm": 1,
+        "cmd_in_adm": 1,
     }
 
     trainer = TWTrainer(

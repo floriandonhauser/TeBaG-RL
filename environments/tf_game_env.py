@@ -19,7 +19,7 @@ REWARD_DICT = {
     "max_loop_pun": 5,
     "change_reward": 1,
     "useless_act_pun": 1,
-    "verb_in_adm": 1,
+    "cmd_in_adm": 1,
 }
 
 
@@ -48,7 +48,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             "max_loop_pun": - Reward for looping over same states
             "change_reward": + Reward for changing surroundings or inventory
             "useless_act_pun": - Reward for using non-recognizable action
-            "verb_in_adm": + Reward for using a verb that is at least admissible
+            "cmd_in_adm": + Reward for using a command that is at least admissible
         }
     hash_list_length: int
         Length of last states to be hashed for change-of-state comparisons and reward
@@ -257,12 +257,13 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
         elif new_state["lost"]:
             reward -= self._reward_dict["win_lose_value"]
 
-        # Check if verb in command was in admissible commands
+        # Check if command (verb + obj pair) was in admissible commands
         cmd_in_adm = self._find_word_in_list(
-            word_str=cmd[: cmd.find(" ")], word_list=new_state["admissible_commands"]
+            word_str=cmd, word_list=new_state["admissible_commands"]
         )
+
         if cmd_in_adm:
-            reward += self._reward_dict["verb_in_adm"]
+            reward += self._reward_dict["cmd_in_adm"]
 
         return reward
 
