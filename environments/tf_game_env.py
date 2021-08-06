@@ -118,7 +118,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             )
 
         self._observation_spec = array_spec.ArraySpec(
-            shape=(2,), dtype=self._obs_stype, name="observation"
+            shape=(3,), dtype=self._obs_stype, name="observation"
         )
 
         self._hash_dsc = [0] * self._hash_list_length
@@ -200,6 +200,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             inventory=True,
             won=True,
             lost=True,
+            objective=True,
         )
         env_id = textworld.gym.register_game(self._game_path, request_info)
         self.curr_TWGym = gym.make(env_id)
@@ -277,7 +278,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
     def _conv_pass_state(self, state):
         """Select information to pass from current state and create app. np.array."""
         return np.array(
-            [state["description"], state["inventory"]], dtype=self._obs_stype
+            [state["description"], state["inventory"], state["objective"], ], dtype=self._obs_stype
         )
 
     @staticmethod
@@ -310,7 +311,6 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
     def _conv_to_state(obs: str, score: int, done: bool, info: dict) -> np.array:
         """Convert TextWorld gym env output into nested array"""
 
-        # TODO: Pre-processing text?
         return {
             "score": score,
             "done": done,
@@ -321,6 +321,7 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             "inventory": info["inventory"],
             "admissible_commands": info["admissible_commands"],
             "entities": info["entities"],
+            "objective": info["objective"],
         }
 
     @staticmethod
