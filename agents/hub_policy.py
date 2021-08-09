@@ -98,13 +98,15 @@ class HubPolicyBert(network.Network):
             input_shape=[],
             dtype=tf.string,
         )
-        self.bert_model = hub.KerasLayer(tfhub_handle_encoder, trainable=True)
+        self.bert_model = hub.KerasLayer(tfhub_handle_encoder, trainable=False)
+        # self.bert_model = hub.KerasLayer(tfhub_handle_encoder, trainable=True)
 
         self.fc1 = tf.keras.layers.Dense(128, activation="relu")
         self.do1 = tf.keras.layers.Dropout(0.1)
 
         self.verb_layer = tf.keras.layers.Dense(num_verb, activation=None)
         self.obj_layer = tf.keras.layers.Dense(num_obj, activation=None)
+        self.verbobj_layer = tf.keras.layers.Dense(num_actions, activation=None)
 
         self.number_of_strings = input_tensor_spec.shape[0]
 
@@ -123,13 +125,14 @@ class HubPolicyBert(network.Network):
 
         flattened_observation = tf.reshape(observation, (-1))
         encoder_inputs = self.bert_preprocess_model(flattened_observation)
-        outputs = self.bert_model(encoder_inputs, training=training)
+        outputs = self.bert_model(encoder_inputs, training=False)
+        # outputs = self.bert_model(encoder_inputs, training=training)
 
         out = outputs["pooled_output"]
         out = tf.reshape(out, (observation.shape[0], observation.shape[1], 128))
 
-        out = self.do1(out, training=training)
-        out = self.fc1(out, training=training)
+        # out = self.do1(out, training=training)
+        # out = self.fc1(out, training=training)
 
         verb_q_value = self.verb_layer(out, training=training)
         obj_q_value = self.obj_layer(out, training=training)
