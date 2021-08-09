@@ -1,6 +1,5 @@
 go
 take
-examine
 open
 put
 unlock
