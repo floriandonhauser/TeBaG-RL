@@ -16,7 +16,7 @@ HASH_LIST_LENGTH = 10
 # all positive int!
 REWARD_DICT = {
     "win_lose_value": 100,
-    "max_loop_pun": 5,
+    "max_loop_pun": 0,
     "change_reward": 1,
     "useless_act_pun": 1,
     "cmd_in_adm": 1,
