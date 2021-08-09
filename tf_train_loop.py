@@ -17,6 +17,8 @@ from agents import create_agent
 from environments import create_environments
 from resources import res_path, DEFAULT_PATHS
 
+from datetime import datetime
+
 DEFAULT_HP = {
     "learning_rate": 1e-3,
     "initial_collect_steps": 5000,
@@ -51,7 +53,7 @@ class TWTrainer(ABC):
         automatically in train() method.
     agent_label: str
         Tag to chose different q networks for the policy.
-        Implemented options ["BertPolicy", "FCPolicy"].
+        Implemented options ["BertPolicy", "FCPolicy", "FCPolicySmall"].
     """
 
     def __init__(
@@ -70,6 +72,12 @@ class TWTrainer(ABC):
         self._env_dir = env_dir
         self._biased_buffer = biased_buffer
         # Reward values to be distinguished by biased buffer
+        # _biased_buffer_thr[0] is lower threshold for high reward, high reward are always added
+        # _biased_buffer_thr[2] is upper threshold for low reward, low reward are always added
+        # For values between the two thresholds, rewards are added based on probabilities
+        # _biased_buffer_thr[1] is lower threshold for positive reward
+        # accept with prob (1 - _biased_buffer_accept_prob[0])
+        # If reward is not positive, accept with prob (1 - _biased_buffer_accept_prob[1])
         self._biased_buffer_thr = tf.constant([10.0, 0.0, -30.0], dtype=np.float32)
         # Probabilities to be not counted for the last two cases above for biased buffer
         self._biased_buffer_accept_prob = tf.constant([0.66, 0.99], dtype=np.float32)
@@ -80,21 +88,23 @@ class TWTrainer(ABC):
         self._test_env = None
         self._train_env_list = []
         self._replay_buffer = None
-        self.summary_writer = tf.summary.create_file_writer(
-            DEFAULT_PATHS["path_logdir"]
-        )
+        # Create tensorboard logger
+        log_path = DEFAULT_PATHS["path_logdir"] + "/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+        print("log can be found in" + log_path)
+        self.summary_writer = tf.summary.create_file_writer(log_path)
         self.summary_writer.set_as_default()
 
         self._setup_training()
 
     def _setup_training(self):
         """Instantiating all relevant entities for training"""
-
+        # Create the environment used for training
         self._train_env, self._test_env, num_verb, num_obj = create_environments(
             debug=self._debug, reward_dict=self._reward_dict
         )
         self._train_env_list.append(self._train_env)
 
+        # Create the agent
         self._agent = create_agent(
             self._train_env,
             num_verb,
@@ -104,10 +114,12 @@ class TWTrainer(ABC):
         )
         self._agent.initialize()
 
+        # Create the random policy
         self._rndm_pol = random_tf_policy.RandomTFPolicy(
             self._train_env.time_step_spec(), self._train_env.action_spec()
         )
 
+        # Create the replay buffer
         self._replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
             data_spec=self._agent.collect_data_spec,
             # FIXME? Does train env has batch size?
@@ -117,7 +129,7 @@ class TWTrainer(ABC):
 
     def _fill_replay_buffer(self):
         """Fill replay buffer with random agent."""
-
+        # If _env_dir is None, use default train environment to fill replay buffer
         if self._env_dir is None:
             self._collect_data(
                 self._train_env,

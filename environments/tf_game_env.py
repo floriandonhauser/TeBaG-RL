@@ -17,7 +17,7 @@ HASH_LIST_LENGTH = 10
 REWARD_DICT = {
     "win_lose_value": 100,
     "max_loop_pun": 5,
-    "change_reward": 1,
+    "change_reward": 0,
     "useless_act_pun": 1,
     "verb_in_adm": 1,
 }
@@ -80,6 +80,8 @@ class TWGameEnv(py_environment.PyEnvironment, ABC):
             "expand_vocab": expand_vocab,
         }
         if reward_dict is not None:
+            #print("using these rewards:")
+            #print(reward_dict)
             self._reward_dict = reward_dict
         else:
             self._reward_dict = REWARD_DICT

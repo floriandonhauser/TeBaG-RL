@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 from tf_agents.agents.dqn import dqn_agent
-from agents import HubPolicyFC, HubPolicyBert
+from agents import HubPolicyFC, HubPolicyBert, HubPolicySmall
 
 
 def create_agent(env, num_verb, num_obj, learning_rate, agent_tag):
@@ -17,7 +17,7 @@ def create_agent(env, num_verb, num_obj, learning_rate, agent_tag):
     learning_rate: float
     agent_tag: str
         Tag to chose different q networks for the policy.
-        Implemented options ["BertPolicy", "FCPolicy"].
+        Implemented options ["BertPolicy", "FCPolicy", "FCPolicySmall"].
     """
 
     train_step_counter = tf.Variable(0, dtype=tf.int64)
@@ -44,6 +44,8 @@ def create_policy(env, num_verb, num_obj, learning_rate=1e-3, agent_tag=None):
         q_net = HubPolicyFC(observation_spec, action_spec, num_verb, num_obj)
     elif agent_tag == "BertPolicy":
         q_net = HubPolicyBert(observation_spec, action_spec, num_verb, num_obj)
+    elif agent_tag == "FCPolicySmall":
+        q_net = HubPolicySmall(observation_spec, action_spec, num_verb, num_obj)
     else:
         ValueError
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
