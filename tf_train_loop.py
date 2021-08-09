@@ -115,7 +115,7 @@ class TWTrainer(ABC):
             max_length=self._hpar["replay_buffer_max_length"],
         )
 
-    def _fill_replay_buffer(self):
+    def _fill_replay_buffer(self, use_env_buffer: bool = True):
         """Fill replay buffer with random agent."""
 
         if self._env_dir is None:
@@ -129,21 +129,24 @@ class TWTrainer(ABC):
         else:
             steps = 0
             while steps <= self._hpar["initial_collect_steps"]:
-                game_path = self._get_rndm_game(self._env_dir)
-                train_env_tmp, _, _, _ = create_environments(
-                    debug=self._debug,
-                    reward_dict=self._reward_dict,
-                    env_name=game_path,
-                    onlytrain=True,
-                )
+                if use_env_buffer:
+                    train_env_tmp = random.choice(self._train_env_list)
+                else:
+                    game_path = self._get_rndm_game(self._env_dir)
+                    train_env_tmp, _, _, _ = create_environments(
+                        debug=self._debug,
+                        reward_dict=self._reward_dict,
+                        env_name=game_path,
+                        onlytrain=True,
+                    )
                 self._collect_data(
                     train_env_tmp,
                     self._rndm_pol,
                     self._replay_buffer,
-                    100,
+                    500,
                     self._hpar["batch_size"],
                 )
-                steps += 100
+                steps += 500
 
     def _refill_env_list(self):
         """Fill _train_env_list with a number of generated environments to train on."""
@@ -206,6 +209,10 @@ class TWTrainer(ABC):
         if not continue_training:
             self._setup_training()
 
+        # create large train env list
+        if self._env_dir is not None:
+            self._refill_env_list()
+
         if rndm_fill_replay:
             self._fill_replay_buffer()
 
@@ -223,9 +230,6 @@ class TWTrainer(ABC):
         returns = []
         iterations = []
 
-        # create large train env list
-        if self._env_dir is not None:
-            self._refill_env_list()
 
         # learning
         if self._biased_buffer:
