@@ -228,6 +228,7 @@ class TWTrainer(ABC):
         self._agent.train_step_counter.assign(0)
 
         returns = []
+        returns_buffer = []
         iterations = []
 
 
@@ -272,9 +273,13 @@ class TWTrainer(ABC):
                         self._hpar["num_eval_episodes"],
                         self._hpar["batch_size"],
                     )
+                    avg_return_currbuff = avg_return
                 else:
-                    test_env_dir = "test" + self._env_dir[5:]
-                    eval_res = 0.0
+                    # test_env_dir = "test" + self._env_dir[5:]
+                    # Use train dir!
+                    test_env_dir = self._env_dir
+                    eval_res_all = 0.0
+                    eval_res_currbuff = 0.0
                     for n_eval in range(self._hpar["num_eval_games"]):
                         game_path = self._get_rndm_game(test_env_dir)
                         _, eval_env_tmp, _, _ = create_environments(
@@ -288,13 +293,37 @@ class TWTrainer(ABC):
                             self._hpar["num_eval_episodes"],
                             self._hpar["batch_size"],
                         )
-                        eval_res += avg_return
-                    avg_return = eval_res / self._hpar["num_eval_games"]
+                        eval_res_all += avg_return
 
-                tf.summary.scalar("eval_score", avg_return, step=step)
-                print(f"step = {step}: Average Return = {avg_return}")
+                        """
+                        rndm_env = random.choice(self._train_env_list)
+                        avg_return = self._compute_avg_return(
+                            rndm_env,
+                            self._agent.policy,
+                            self._hpar["num_eval_episodes"],
+                            self._hpar["batch_size"],
+                        )
+                        eval_res_currbuff += avg_return
+                        """
+                    for env in self._train_env_list:
+                        avg_return = self._compute_avg_return(
+                            env,
+                            self._agent.policy,
+                            self._hpar["num_eval_episodes"],
+                            self._hpar["batch_size"],
+                        )
+                        eval_res_currbuff += avg_return
+
+                    avg_return = eval_res_all / self._hpar["num_eval_games"]
+                    avg_return_currbuff = eval_res_currbuff / len(self._train_env_list)
+                    # avg_return_currbuff = eval_res_currbuff / self._hpar["num_eval_games"]
+
+                tf.summary.scalar("eval_score_all", avg_return, step=step)
+                tf.summary.scalar("eval_score_currbuff", avg_return_currbuff, step=step)
+                print(f"step = {step}: Average Return (all games / curr buff) = {avg_return} / {avg_return_currbuff}")
                 iterations.append(step)
                 returns.append(avg_return)
+                returns_buffer.append(avg_return_currbuff)
 
             if step % game_gen_interval == 0:
                 if self._env_dir is not None:
@@ -302,6 +331,7 @@ class TWTrainer(ABC):
 
         iterations = np.array(iterations)
         returns = np.array(returns)
+        returns_buffer = np.array(returns_buffer)
 
         if plot_avg_ret:
             print(iterations.shape, iterations)
@@ -312,7 +342,7 @@ class TWTrainer(ABC):
             plt.ylim(top=250, bottom=-130)
             plt.savefig("training_curve.png")
 
-        return returns
+        return returns, returns_buffer
 
     @staticmethod
     def _compute_avg_return(environment, policy, num_episodes, batch_size):
