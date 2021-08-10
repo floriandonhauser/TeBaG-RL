@@ -30,7 +30,6 @@ class HubPolicyFC(network.Network):
             input_shape=[],
             dtype=tf.string,
             trainable=True
-            # embedding, input_shape = [], dtype = tf.string, trainable = False
         )
 
         self.fc1 = tf.keras.layers.Dense(128, activation="relu")
@@ -98,8 +97,8 @@ class HubPolicyBert(network.Network):
             input_shape=[],
             dtype=tf.string,
         )
-        self.bert_model = hub.KerasLayer(tfhub_handle_encoder, trainable=False)
-        # self.bert_model = hub.KerasLayer(tfhub_handle_encoder, trainable=True)
+
+        self.bert_model = hub.KerasLayer(tfhub_handle_encoder, trainable=True)
 
         self.fc1 = tf.keras.layers.Dense(128, activation="relu")
         self.do1 = tf.keras.layers.Dropout(0.1)
@@ -125,8 +124,7 @@ class HubPolicyBert(network.Network):
 
         flattened_observation = tf.reshape(observation, (-1))
         encoder_inputs = self.bert_preprocess_model(flattened_observation)
-        outputs = self.bert_model(encoder_inputs, training=False)
-        # outputs = self.bert_model(encoder_inputs, training=training)
+        outputs = self.bert_model(encoder_inputs, training=training)
 
         out = outputs["pooled_output"]
         out = tf.reshape(out, (observation.shape[0], observation.shape[1], 128))
