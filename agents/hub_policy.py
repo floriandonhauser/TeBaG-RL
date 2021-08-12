@@ -73,8 +73,14 @@ class HubPolicyFC(network.Network):
 
         verb_q_value = self.verb_layer(out, training=training)
         obj_q_value = self.obj_layer(out, training=training)
-        q_value_multiplied = tf.matmul(verb_q_value, obj_q_value, transpose_a=True)
-        q_values = tf.reshape(q_value_multiplied, (observation.shape[0], -1))
+        # q_value_multiplied = tf.matmul(verb_q_value, obj_q_value, transpose_a=True)
+        # q_values = tf.reshape(q_value_multiplied, (observation.shape[0], -1))
+
+        verb_q_value = tf.reshape(verb_q_value,  (observation.shape[0], observation.shape[1], verb_q_value.shape[2], 1))
+        obj_q_value = tf.reshape(obj_q_value,  (observation.shape[0], observation.shape[1], 1, obj_q_value.shape[2]))
+        q_values_added = tf.add(verb_q_value, obj_q_value)
+        q_values_added = tf.math.reduce_sum(q_values_added, axis=1)
+        q_values = tf.reshape(q_values_added, (observation.shape[0], -1))
 
         return q_values, ()
 
@@ -134,7 +140,13 @@ class HubPolicyBert(network.Network):
 
         verb_q_value = self.verb_layer(out, training=training)
         obj_q_value = self.obj_layer(out, training=training)
-        q_value_multiplied = tf.matmul(verb_q_value, obj_q_value, transpose_a=True)
-        q_values = tf.reshape(q_value_multiplied, (observation.shape[0], -1))
+        # q_value_multiplied = tf.matmul(verb_q_value, obj_q_value, transpose_a=True)
+        # q_values = tf.reshape(q_value_multiplied, (observation.shape[0], -1))
+
+        verb_q_value = tf.reshape(verb_q_value,  (observation.shape[0], observation.shape[1], verb_q_value.shape[2], 1))
+        obj_q_value = tf.reshape(obj_q_value,  (observation.shape[0], observation.shape[1], 1, obj_q_value.shape[2]))
+        q_values_added = tf.add(verb_q_value, obj_q_value)
+        q_values_added = tf.math.reduce_sum(q_values_added, axis=1)
+        q_values = tf.reshape(q_values_added, (observation.shape[0], -1))
 
         return q_values, ()
