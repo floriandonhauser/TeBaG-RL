@@ -25,6 +25,7 @@ DEFAULT_HP = {
     "batch_size": 128,
     "num_eval_episodes": 1,
     "num_eval_games": 10,
+    "num_test_games": 50,
     "game_gen_buffer": 50,
 }
 
@@ -183,6 +184,7 @@ class TWTrainer(ABC):
         continue_training=False,
         rndm_fill_replay=True,
         plot_avg_ret: bool = True,
+        test_agent: bool =False,
     ):
         """Central training loop.
 
@@ -204,6 +206,8 @@ class TWTrainer(ABC):
             Toggle filling replay agent with random agent before training.
         plot_avg_ret: bool
             Plot eval scores at the end of training loop.
+        test_agent: bool
+            Evaluate agent at the end of training on random sample from the test set.
         """
 
         if not continue_training:
@@ -329,6 +333,36 @@ class TWTrainer(ABC):
                 if self._env_dir is not None:
                     self._refill_env_list()
 
+        if test_agent:
+            test_env_dir = "test" + self._env_dir[5:]
+            test_res = 0.0
+            rndm_res = 0.0
+            for n_eval in range(self._hpar["num_test_games"]):
+                game_path = self._get_rndm_game(test_env_dir)
+                _, eval_env_tmp, _, _ = create_environments(
+                    debug=self._debug,
+                    reward_dict=self._reward_dict,
+                    env_name=game_path,
+                )
+                avg_return_agent = self._compute_avg_return(
+                    eval_env_tmp,
+                    self._agent.policy,
+                    self._hpar["num_eval_episodes"],
+                    self._hpar["batch_size"],
+                )
+                avg_return_rndm = self._compute_avg_return(
+                    eval_env_tmp,
+                    self._rndm_pol,
+                    self._hpar["num_eval_episodes"],
+                    self._hpar["batch_size"],
+                )
+                test_res += avg_return_agent
+                rndm_res += avg_return_rndm
+
+            test_res = test_res / self._hpar["num_test_games"]
+            rndm_res = rndm_res / self._hpar["num_test_games"]
+            print(f"Agent performance: {test_res} \t vs. random agent: {rndm_res}")
+
         iterations = np.array(iterations)
         returns = np.array(returns)
         returns_buffer = np.array(returns_buffer)
@@ -416,7 +450,7 @@ def main():
         "collect_steps_per_iteration": 1,
         "replay_buffer_max_length": 100000,
         # large values lead to OOM with bert policy
-        "batch_size": 32,
+        "batch_size": 64,
         "num_eval_episodes": 1,
         "game_gen_buffer": 25,
         "num_eval_games": 10,
