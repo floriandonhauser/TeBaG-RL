@@ -368,12 +368,18 @@ class TWTrainer(ABC):
         returns_buffer = np.array(returns_buffer)
 
         if plot_avg_ret:
-            print(iterations.shape, iterations)
-            print(returns.shape, returns)
-            plt.plot(iterations, returns)
-            plt.ylabel("Average Return")
-            plt.xlabel("Iterations")
-            plt.ylim(top=250, bottom=-130)
+            fig, axs = plt.subplots(1, 1)
+            fig.suptitle("Training Rewards")
+            # fig.subplots_adjust(hspace=0.6)
+            axs.plot(iterations, returns, label="All games")
+            axs.set(xlabel="Iterations [ ]", ylabel="AvgReward [ ]")
+            axs.plot(iterations, returns_buffer, label="CurrBuff games")
+            if test_agent:
+                axs.plot(iterations, [test_res]*len(iterations), label="Test games")
+            axs.set_ylim([-120, 220])
+            axs.legend()
+
+            # plt.tight_layout()
             plt.savefig("training_curve.png")
 
         return returns, returns_buffer
